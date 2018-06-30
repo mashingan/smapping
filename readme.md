@@ -15,6 +15,10 @@ type propagation and various reasoning.
 It's a trade-off that one has to make to enable interfacing with dynamically
 defined such as ``json``.
 
+## Install
+```
+go get github.com/mashingan/smapping
+```
 
 ## LICENSE
 MIT
