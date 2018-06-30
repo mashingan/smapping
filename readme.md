@@ -1,4 +1,4 @@
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=plastic)](./readme.md)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=plastic)](./LICENSE)
 
 # smapping
 Golang structs generic mapping.
