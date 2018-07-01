@@ -99,7 +99,7 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 
 func FillStruct(obj interface{}, mapped Mapped) error {
 	for k, v := range mapped {
-		exists, err := SetField(obj, k, v)
+		exists, err := setField(obj, k, v)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 
 func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 	for k, v := range mapped {
-		exists, err := SetFieldFromTag(obj, tagname, k, v)
+		exists, err := setFieldFromTag(obj, tagname, k, v)
 		if err != nil {
 			return err
 		}

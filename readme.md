@@ -20,5 +20,79 @@ defined such as ``json``.
 go get github.com/mashingan/smapping
 ```
 
+## Example
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/mashingan/smapping"
+)
+
+type Source struct {
+	Label   string `json:"label"`
+	Info    string `json:"info"`
+	Version int    `json:"version"`
+}
+
+type Sink struct {
+	Label string
+	Info  string
+}
+
+type HereticSink struct {
+	NahLabel string `json:"label"`
+	HahaInfo string `json:"info"`
+	Version  string `json:"heretic_version"`
+}
+
+type DifferentOneField struct {
+	Name    string `json:"name" api:"name"`
+	Label   string `json:"label" api:"label"`
+	Code    string `json:"code" api:"code"`
+	Private string `json:"private" api:"internal"`
+}
+
+func main() {
+	source := Source{
+		Label:   "source",
+		Info:    "the origin",
+		Version: 1,
+	}
+	fmt.Println("source:", source)
+	mapped := smapping.MapFields(&source)
+	fmt.Println("mapped:", mapped)
+	sink := Sink{}
+	err := smapping.FillStruct(&sink, mapped)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sink:", sink)
+
+	maptags := smapping.MapTags(&source, "json")
+	fmt.Println("maptags:", maptags)
+	hereticsink := HereticSink{}
+	err = smapping.FillStructByTags(&hereticsink, maptags, "json")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("heretic sink:", hereticsink)
+
+	recvjson := []byte(`{"name": "bella", "label": "balle", "code": "albel", "private": "allbe"}`)
+	dof := DifferentOneField{}
+	_ = json.Unmarshal(recvjson, &dof)
+	fmt.Println("unmarshaled struct:", dof)
+
+	marshaljson, _ := json.Marshal(dof)
+	fmt.Println("marshal back:", string(marshaljson))
+
+	// What we want actually "internal" instead of "private" field
+	// we use the api tags on to make the json
+	apijson, _ := json.Marshal(smapping.MapTags(&dof, "api"))
+	fmt.Println("api marshal:", string(apijson))
+}
+```
 ## LICENSE
 MIT
