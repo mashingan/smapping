@@ -12,6 +12,12 @@ import (
 
 type Mapped map[string]interface{}
 
+/*
+This function maps between struct to mapped interfaces{}.
+The argument must be pointer struct or else it will throw panic error.
+
+Only map the exported fields.
+*/
 func MapFields(x interface{}) Mapped {
 	result := make(Mapped)
 	argvalue := reflect.ValueOf(x).Elem()
@@ -26,6 +32,10 @@ func MapFields(x interface{}) Mapped {
 	return result
 }
 
+/*
+This function maps the tag value of defined field tag name. This enable
+various field extraction that will be mapped to mapped interfaces{}.
+*/
 func MapTags(x interface{}, tag string) Mapped {
 	result := make(Mapped)
 	value := reflect.ValueOf(x).Elem()
