@@ -92,6 +92,26 @@ func main() {
 	// we use the api tags on to make the json
 	apijson, _ := json.Marshal(smapping.MapTags(&dof, "api"))
 	fmt.Println("api marshal:", string(apijson))
+
+
+	// This time is the reverse, we receive "internal" field when
+	// we need to receive "private" field to match our json tag field
+	respjson := []byte(`{"name": "bella", "label": "balle", "code": "albel", "internal": "allbe"}`)
+	respdof := DifferentOneField{}
+	_ = json.Unmarshal(respjson, &respdof)
+	fmt.Println("unmarshal resp:", respdof)
+
+	// to get that, we should put convert the json to Mapped first
+	jsonmapped := smapping.Mapped{}
+	_ = json.Unmarshal(respjson, &jsonmapped)
+	// now we fill our struct respdof
+	_ = smapping.FillStructByTags(&respdof, jsonmapped, "api")
+	fmt.Println("full resp:", respdof)
+	returnback, _ := json.Marshal(respdof)
+	fmt.Println("marshal resp back:", string(returnback))
+	// first we unmarshal respdof, we didn't get the "private" field
+	// but after our mapping, we get "internal" field value and
+	// simply marshaling back to `returnback`
 }
 ```
 ## LICENSE
