@@ -27,16 +27,24 @@ var sourceobj source = source{
 	Version: 1,
 }
 
+func printIfNotExists(mapped Mapped, keys ...string) {
+	for _, key := range keys {
+		if _, ok := mapped[key]; !ok {
+			fmt.Println(false)
+		}
+	}
+}
+
 func ExampleMapFields() {
 	mapped := MapFields(&sourceobj)
-	fmt.Println(mapped)
-	// Output: map[Label:source Info:the origin Version:1]
+	printIfNotExists(mapped, "Label", "Info", "Version")
+	// Output:
 }
 
 func ExampleMapTags_basic() {
 	maptags := MapTags(&sourceobj, "json")
-	fmt.Println(maptags)
-	// Output: map[label:source info:the origin version:1]
+	printIfNotExists(maptags, "label", "info", "version")
+	// Output:
 }
 
 func ExampleMapTags_twoTags() {
@@ -54,14 +62,12 @@ func ExampleMapTags_twoTags() {
 		nickname: "drone",
 	}
 	mapjson := MapTags(&general, "json")
-	fmt.Println(mapjson)
+	printIfNotExists(mapjson, "name", "rank", "code")
 
 	mapapi := MapTags(&general, "api")
-	fmt.Println(mapapi)
+	printIfNotExists(mapapi, "general_name", "general_rank", "general_code")
 
 	// Output:
-	// map[name:duran rank:private code:1337]
-	// map[general_name:duran general_rank:private general_code:1337]
 }
 
 func ExampleFillStruct() {

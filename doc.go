@@ -36,5 +36,13 @@ The snippet code below will be used accross example for brevity
 	Info:    "the origin",
 	Version: 1,
     }
+
+    func printIfNotExists(mapped Mapped, keys ...string) {
+	for _, key := range keys {
+	    if _, ok := mapped[key]; !ok {
+		fmt.Println(false)
+	    }
+	}
+    }
 */
 package smapping
