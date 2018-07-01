@@ -52,6 +52,33 @@ func MapTags(x interface{}, tag string) Mapped {
 	return result
 }
 
+func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
+	result := make(Mapped)
+	value := reflect.ValueOf(x).Elem()
+	xtype := value.Type()
+	for i := 0; i < value.NumField(); i++ {
+		field := xtype.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		var (
+			tagval string
+			ok     bool
+		)
+		if tagval, ok = field.Tag.Lookup(tag); ok {
+			result[tagval] = value.Field(i).Interface()
+		} else {
+			for _, deftag := range defs {
+				if tagval, ok = field.Tag.Lookup(deftag); ok {
+					result[tagval] = value.Field(i).Interface()
+					break // break from looping the defs
+				}
+			}
+		}
+	}
+	return result
+}
+
 func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	sval := reflect.ValueOf(obj).Elem()
 	sfval := sval.FieldByName(name)
