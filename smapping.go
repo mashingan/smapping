@@ -52,7 +52,7 @@ func MapTags(x interface{}, tag string) Mapped {
 	return result
 }
 
-func SetField(obj interface{}, name string, value interface{}) (bool, error) {
+func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	sval := reflect.ValueOf(obj).Elem()
 	sfval := sval.FieldByName(name)
 	if !sfval.IsValid() {
@@ -70,7 +70,7 @@ func SetField(obj interface{}, name string, value interface{}) (bool, error) {
 	return true, nil
 }
 
-func SetFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
+func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
 	sval := reflect.ValueOf(obj).Elem()
 	stype := sval.Type()
 	for i := 0; i < sval.NumField(); i++ {
