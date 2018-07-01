@@ -1,4 +1,5 @@
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=plastic)](./LICENSE)
+[![CircleCI](https://circleci.com/gh/mashingan/smapping.svg?style=svg)](https://circleci.com/gh/mashingan/smapping)
 
 # smapping
 Golang structs generic mapping.
