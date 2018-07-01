@@ -49,9 +49,9 @@ type HereticSink struct {
 }
 
 type DifferentOneField struct {
-	Name    string `json:"name" api:"name"`
-	Label   string `json:"label" api:"label"`
-	Code    string `json:"code" api:"code"`
+	Name    string `json:"name"`
+	Label   string `json:"label"`
+	Code    string `json:"code"`
 	Private string `json:"private" api:"internal"`
 }
 
@@ -80,6 +80,7 @@ func main() {
 	}
 	fmt.Println("heretic sink:", hereticsink)
 
+	fmt.Println("=============")
 	recvjson := []byte(`{"name": "bella", "label": "balle", "code": "albel", "private": "allbe"}`)
 	dof := DifferentOneField{}
 	_ = json.Unmarshal(recvjson, &dof)
@@ -90,10 +91,10 @@ func main() {
 
 	// What we want actually "internal" instead of "private" field
 	// we use the api tags on to make the json
-	apijson, _ := json.Marshal(smapping.MapTags(&dof, "api"))
+	apijson, _ := json.Marshal(smapping.MapTagsWithDefault(&dof, "api", "json"))
 	fmt.Println("api marshal:", string(apijson))
 
-
+	fmt.Println("=============")
 	// This time is the reverse, we receive "internal" field when
 	// we need to receive "private" field to match our json tag field
 	respjson := []byte(`{"name": "bella", "label": "balle", "code": "albel", "internal": "allbe"}`)
