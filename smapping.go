@@ -52,6 +52,11 @@ func MapTags(x interface{}, tag string) Mapped {
 	return result
 }
 
+/*
+This function maps the tag with optional fallback tags. This to enable
+tag differences when there are only few difference with the default ``json``
+tag.
+*/
 func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 	result := make(Mapped)
 	value := reflect.ValueOf(x).Elem()
@@ -124,6 +129,10 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 	return false, nil
 }
 
+/*
+This acts just like ``json.Unmarshal`` but works with ``Mapped`` instead
+of bytes of char that made from ``json``
+*/
 func FillStruct(obj interface{}, mapped Mapped) error {
 	for k, v := range mapped {
 		exists, err := setField(obj, k, v)
@@ -137,6 +146,10 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 	return nil
 }
 
+/*
+This function counterpart fills the field that has tagname and tagvalue
+instead of Mapped key name.
+*/
 func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 	for k, v := range mapped {
 		exists, err := setFieldFromTag(obj, tagname, k, v)

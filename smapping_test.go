@@ -1,6 +1,7 @@
 package smapping
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -30,7 +31,7 @@ var sourceobj source = source{
 func printIfNotExists(mapped Mapped, keys ...string) {
 	for _, key := range keys {
 		if _, ok := mapped[key]; !ok {
-			fmt.Println(false)
+			fmt.Println(key, ": not exists")
 		}
 	}
 }
@@ -47,13 +48,14 @@ func ExampleMapTags_basic() {
 	// Output:
 }
 
+type generalFields struct {
+	Name     string `json:"name" api:"general_name"`
+	Rank     string `json:"rank" api:"general_rank"`
+	Code     int    `json:"code" api:"general_code"`
+	nickname string // won't be mapped because not exported
+}
+
 func ExampleMapTags_twoTags() {
-	type generalFields struct {
-		Name     string `json:"name" api:"general_name"`
-		Rank     string `json:"rank" api:"general_rank"`
-		Code     int    `json:"code" api:"general_code"`
-		nickname string // won't be mapped because not exported
-	}
 
 	general := generalFields{
 		Name:     "duran",
@@ -68,6 +70,28 @@ func ExampleMapTags_twoTags() {
 	printIfNotExists(mapapi, "general_name", "general_rank", "general_code")
 
 	// Output:
+}
+
+func ExampleMapTagsWithDefault() {
+	type higherCommon struct {
+		General     generalFields `json:"general"`
+		Communality string        `json:"common"`
+		Available   bool          `json:"available" api:"is_available"`
+	}
+	rawjson := []byte(`{
+	    "general": {
+		name:     "duran",
+		rank:     "private",
+		code:     1337,
+	    },
+	    "common": "rare",
+	    "available": true
+	}`)
+	hc := higherCommon{}
+	_ = json.Unmarshal(rawjson, &hc)
+	maptags := MapTagsWithDefault(&hc, "api", "json")
+	printIfNotExists(maptags, "available")
+	// Output: available : not exists
 }
 
 func ExampleFillStruct() {
