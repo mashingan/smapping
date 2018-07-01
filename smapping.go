@@ -10,10 +10,11 @@ import (
 	"reflect"
 )
 
+// Mapped simply an alias
 type Mapped map[string]interface{}
 
 /*
-This function maps between struct to mapped interfaces{}.
+MapFields maps between struct to mapped interfaces{}.
 The argument must be pointer struct or else it will throw panic error.
 
 Only map the exported fields.
@@ -33,7 +34,7 @@ func MapFields(x interface{}) Mapped {
 }
 
 /*
-This function maps the tag value of defined field tag name. This enable
+MapTags maps the tag value of defined field tag name. This enable
 various field extraction that will be mapped to mapped interfaces{}.
 */
 func MapTags(x interface{}, tag string) Mapped {
@@ -53,7 +54,7 @@ func MapTags(x interface{}, tag string) Mapped {
 }
 
 /*
-This function maps the tag with optional fallback tags. This to enable
+MapTagsWithDefault maps the tag with optional fallback tags. This to enable
 tag differences when there are only few difference with the default ``json``
 tag.
 */
@@ -130,8 +131,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 }
 
 /*
-This acts just like ``json.Unmarshal`` but works with ``Mapped`` instead
-of bytes of char that made from ``json``
+FillStruct acts just like ``json.Unmarshal`` but works with ``Mapped``
+instead of bytes of char that made from ``json``.
 */
 func FillStruct(obj interface{}, mapped Mapped) error {
 	for k, v := range mapped {
@@ -147,7 +148,7 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 }
 
 /*
-This function counterpart fills the field that has tagname and tagvalue
+FillStructByTags fills the field that has tagname and tagvalue
 instead of Mapped key name.
 */
 func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {

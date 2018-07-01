@@ -3,7 +3,7 @@
 // in LICENSE
 
 /*
-Library for collecting various operations on struct and its mapping
+Package smapping is Library for collecting various operations on struct and its mapping
 to interface{} and/or map[string]interface{} type.
 Implemented to ease the conversion between Golang struct and json format
 together with ease of mapping selections using different part of field tagging.
