@@ -8,6 +8,7 @@ package smapping
 import (
 	"fmt"
 	"reflect"
+	s "strings"
 )
 
 // Mapped simply an alias
@@ -47,7 +48,7 @@ func MapTags(x interface{}, tag string) Mapped {
 			continue
 		}
 		if tagvalue, ok := field.Tag.Lookup(tag); ok {
-			result[tagvalue] = value.Field(i).Interface()
+			result[s.Split(tagvalue, ",")[0]] = value.Field(i).Interface()
 		}
 	}
 	return result
