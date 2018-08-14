@@ -34,6 +34,10 @@ func MapFields(x interface{}) Mapped {
 	return result
 }
 
+func tagHead(tag string) string {
+	return s.Split(tag, ",")[0]
+}
+
 /*
 MapTags maps the tag value of defined field tag name. This enable
 various field extraction that will be mapped to mapped interfaces{}.
@@ -48,7 +52,7 @@ func MapTags(x interface{}, tag string) Mapped {
 			continue
 		}
 		if tagvalue, ok := field.Tag.Lookup(tag); ok {
-			result[s.Split(tagvalue, ",")[0]] = value.Field(i).Interface()
+			result[tagHead(tagvalue)] = value.Field(i).Interface()
 		}
 	}
 	return result
@@ -73,11 +77,11 @@ func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 			ok     bool
 		)
 		if tagval, ok = field.Tag.Lookup(tag); ok {
-			result[tagval] = value.Field(i).Interface()
+			result[tagHead(tagval)] = value.Field(i).Interface()
 		} else {
 			for _, deftag := range defs {
 				if tagval, ok = field.Tag.Lookup(deftag); ok {
-					result[tagval] = value.Field(i).Interface()
+					result[tagHead(tagval)] = value.Field(i).Interface()
 					break // break from looping the defs
 				}
 			}
