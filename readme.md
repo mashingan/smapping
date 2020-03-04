@@ -15,7 +15,8 @@ value.
 While it seems good, however ``interface{}`` only gives us ability to *disable* 
 type propagation and various reasoning.
 It's a trade-off that one has to make to enable interfacing with dynamically
-defined such as ``json``.
+defined such as ``json``.  
+It's now able to map and fill nested objects.
 
 ## Install
 ```
@@ -117,5 +118,61 @@ func main() {
 	// simply marshaling back to `returnback`
 }
 ```
+
+Nested object example
+```go
+
+type RefLevel3 struct {
+	What string `json:"finally"`
+}
+type Level2 struct {
+	*RefLevel3 `json:"ref_level3"`
+}
+type Level1 struct {
+	Level2 `json:"level2"`
+}
+type TopLayer struct {
+	Level1 `json:"level1"`
+}
+type MadNest struct {
+	TopLayer `json:"top"`
+}
+
+var madnestStruct MadNest = MadNest{
+	TopLayer: TopLayer{
+		Level1: Level1{
+			Level2: Level2{
+				RefLevel3: &RefLevel3{
+					What: "matryoska",
+				},
+			},
+		},
+	},
+}
+
+func main() {
+	// since we're targeting the same MadNest, both of functions will yield
+	// same result hence this unified example/test.
+	var madnestObj MadNest
+	var err error
+	testByTags := true
+	if testByTags {
+		madnestMap := smapping.MapTags(&madnestStruct, "json")
+		err = smapping.FillStructByTags(&madnestObj, madnestMap, "json")
+	} else {
+		madnestMap := smapping.MapFields(&madnestStruct)
+		err = smapping.FillStruct(&madnestObj)
+	}
+	if err != nil {
+		fmt.Printf("%s", err.Error())
+		return
+	}
+	// the result should yield as intented value.
+	if madnestObj.TopLayer.Level1.Level2.RefLevel3.What != "matryoska" {
+		fmt.Printf("Error: expected \"matroska\" got \"%s\"", madnestObj.Level1.Level2.RefLevel3.What)
+	}
+}
+```
+
 ## LICENSE
 MIT
