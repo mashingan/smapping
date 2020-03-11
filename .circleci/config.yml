@@ -20,8 +20,8 @@ jobs:
     working_directory: /go/src/github.com/mashingan/smapping
     steps:
       - add_ssh_keys:
-        fingerprints:
-          - "bb:5a:75:61:c5:6b:f4:03:2f:95:47:77:21:f5:8f:2d"
+          fingerprints:
+            - "bb:5a:75:61:c5:6b:f4:03:2f:95:47:77:21:f5:8f:2d"
       - checkout
 
       # specify any bash command here prefixed with `run: `
