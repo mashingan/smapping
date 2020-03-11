@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 type source struct {
@@ -253,4 +254,60 @@ func TestFillStructByTags_nested(t *testing.T) {
 
 func TestFillStruct_nested(t *testing.T) {
 	FillStructNestedTest(false, t)
+}
+
+func fillStructTime(bytag bool, t *testing.T) {
+	type timeMap struct {
+		Label string    `json:"label"`
+		Time  time.Time `json:"definedTime"`
+	}
+	now := time.Now()
+	obj := timeMap{Label: "test", Time: now}
+	objTarget := timeMap{}
+	if bytag {
+		jsbyte, err := json.Marshal(obj)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		mapp := Mapped{}
+		err = json.Unmarshal(jsbyte, &mapp)
+		err = FillStructByTags(&objTarget, mapp, "json")
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	} else {
+		mapfield := MapFields(&obj)
+		jsbyte, err := json.Marshal(mapfield)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		mapp := Mapped{}
+		err = json.Unmarshal(jsbyte, &mapp)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		err = FillStruct(&objTarget, mapp)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}
+	if !objTarget.Time.Equal(obj.Time) {
+		t.Errorf("Error value conversion: %s not equal with %s",
+			objTarget.Time.Format(time.RFC3339),
+			obj.Time.Format(time.RFC3339),
+		)
+		return
+	}
+}
+func TestFillStructByTags_time_conversion(t *testing.T) {
+	fillStructTime(true, t)
+}
+
+func TestFillStruct_time_conversion(t *testing.T) {
+	fillStructTime(false, t)
 }

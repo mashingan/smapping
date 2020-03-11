@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	s "strings"
+	"time"
 )
 
 // Mapped simply an alias
@@ -115,6 +116,14 @@ func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 	return result
 }
 
+func handleTime(layout, format string) (reflect.Value, error) {
+	t, err := time.Parse(layout, format)
+	if err != nil {
+		return reflect.Value{}, fmt.Errorf("time conversion: %s", err.Error())
+	}
+	return reflect.ValueOf(&t).Elem(), nil
+}
+
 func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	sval := extractValue(obj)
 	sfval := sval.FieldByName(name)
@@ -126,7 +135,14 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	}
 	sftype := sfval.Type()
 	val := reflect.ValueOf(value)
-	if sftype != val.Type() {
+	if sftype.Name() == "Time" {
+		var err error
+		val, err = handleTime(time.RFC3339, val.String())
+		if err != nil {
+			return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+		}
+
+	} else if sftype != val.Type() {
 		return false, fmt.Errorf("Provided value type not match object field type")
 	}
 	sfval.Set(val)
@@ -142,6 +158,7 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			continue
 		}
 		if tag, ok := field.Tag.Lookup(tagname); ok {
+			var err error
 			vfield := sval.Field(i)
 			if !vfield.IsValid() || !vfield.CanSet() {
 				return false, nil
@@ -154,29 +171,35 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 					gotptr = true
 				}
 				res := reflect.New(vfield.Type()).Elem()
-				if res.IsValid() && val.Type().Name() == "Mapped" {
+				if vfield.Type().Name() == "Time" {
+					val, err = handleTime(time.RFC3339, val.String())
+					if err != nil {
+						return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+					}
+				} else if res.IsValid() && val.Type().Name() == "Mapped" {
 					iter := val.MapRange()
 					m := Mapped{}
 					for iter.Next() {
-						key := iter.Key().String()
-						value := iter.Value().Interface()
-						m[key] = value
+						m[iter.Key().String()] = iter.Value().Interface()
 					}
-					if !gotptr {
+					if gotptr {
+						vval := vfield.Type().Elem()
+						ptrres := reflect.New(vval).Elem()
+						for k, v := range m {
+							success, err := setFieldFromTag(ptrres, tagname, k, v)
+							if err != nil {
+								return false, fmt.Errorf("Ptr nested error: %s", err.Error())
+							}
+							if !success {
+								continue
+							}
+						}
+						val = ptrres.Addr()
+					} else {
 						if err := FillStructByTags(res, m, tagname); err != nil {
 							return false, fmt.Errorf("Nested error: %s", err.Error())
 						}
 						val = res
-					} else {
-						vval := vfield.Type().Elem()
-						ptrres := reflect.New(vval).Elem()
-						for k, v := range m {
-							_, err := setFieldFromTag(ptrres, tagname, k, v)
-							if err != nil {
-								return false, fmt.Errorf("Ptr nested error: %s", err.Error())
-							}
-						}
-						val = ptrres.Addr()
 					}
 				} else if field.Type != val.Type() {
 					return false, fmt.Errorf("Provided value type not match field object")
