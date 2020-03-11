@@ -5,6 +5,9 @@
 # smapping
 Golang structs generic mapping.
 
+### Version Limit
+To support nesting object conversion, the lowest Golang version supported is `1.12.0`.
+
 ## Motivation
 Working with between ``struct``, and ``json`` with **Golang** has various
 degree of difficulty.
