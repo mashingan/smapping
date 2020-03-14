@@ -258,11 +258,12 @@ func TestFillStruct_nested(t *testing.T) {
 
 func fillStructTime(bytag bool, t *testing.T) {
 	type timeMap struct {
-		Label string    `json:"label"`
-		Time  time.Time `json:"definedTime"`
+		Label   string     `json:"label"`
+		Time    time.Time  `json:"definedTime"`
+		PtrTime *time.Time `json:"ptrTime"`
 	}
 	now := time.Now()
-	obj := timeMap{Label: "test", Time: now}
+	obj := timeMap{Label: "test", Time: now, PtrTime: &now}
 	objTarget := timeMap{}
 	if bytag {
 		jsbyte, err := json.Marshal(obj)
@@ -303,7 +304,16 @@ func fillStructTime(bytag bool, t *testing.T) {
 		)
 		return
 	}
+	if !objTarget.PtrTime.Equal(*(obj.PtrTime)) {
+		t.Errorf("Error value pointer time conversion: %s not equal with %s",
+			objTarget.PtrTime.Format(time.RFC3339),
+			obj.PtrTime.Format(time.RFC3339),
+		)
+		return
+
+	}
 }
+
 func TestFillStructByTags_time_conversion(t *testing.T) {
 	fillStructTime(true, t)
 }

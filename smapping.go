@@ -116,12 +116,23 @@ func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 	return result
 }
 
-func handleTime(layout, format string) (reflect.Value, error) {
+func isTime(typ reflect.Type) bool {
+	return typ.Name() == "Time" || typ.String() == "*time.Time"
+}
+func handleTime(layout, format string, typ reflect.Type) (reflect.Value, error) {
 	t, err := time.Parse(layout, format)
+	var resval reflect.Value
 	if err != nil {
-		return reflect.Value{}, fmt.Errorf("time conversion: %s", err.Error())
+		return resval, fmt.Errorf("time conversion: %s", err.Error())
 	}
-	return reflect.ValueOf(&t).Elem(), nil
+	if typ.Kind() == reflect.Ptr {
+		resval = reflect.New(typ).Elem()
+		resval.Set(reflect.ValueOf(&t))
+	} else {
+		resval = reflect.ValueOf(&t).Elem()
+
+	}
+	return resval, err
 }
 
 func setField(obj interface{}, name string, value interface{}) (bool, error) {
@@ -135,9 +146,9 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	}
 	sftype := sfval.Type()
 	val := reflect.ValueOf(value)
-	if sftype.Name() == "Time" {
+	if isTime(sftype) {
 		var err error
-		val, err = handleTime(time.RFC3339, val.String())
+		val, err = handleTime(time.RFC3339, val.String(), sftype)
 		if err != nil {
 			return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
 		}
@@ -171,8 +182,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 					gotptr = true
 				}
 				res := reflect.New(vfield.Type()).Elem()
-				if vfield.Type().Name() == "Time" {
-					val, err = handleTime(time.RFC3339, val.String())
+				if isTime(vfield.Type()) {
+					val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
 					if err != nil {
 						return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
 					}
