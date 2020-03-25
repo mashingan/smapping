@@ -116,6 +116,36 @@ func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 	return result
 }
 
+// MapTagsFlatten is to flatten mapped object with specific tag. The limitation
+// of this flattening that it can't have duplicate tag name and it will give
+// incorrect result because the older value will be written with newer map field value.
+func MapTagsFlatten(x interface{}, tag string) Mapped {
+	result := make(Mapped)
+	value := extractValue(x)
+	xtype := value.Type()
+	for i := 0; i < value.NumField(); i++ {
+		field := xtype.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		fieldval := value.Field(i)
+		if tagvalue, ok := field.Tag.Lookup(tag); ok {
+			key := tagHead(tagvalue)
+			result[key] = fieldval.Interface()
+		} else {
+			fkind := fieldval.Kind()
+			if fkind == reflect.Ptr {
+				fieldval = fieldval.Elem()
+			}
+			nests := MapTagsFlatten(fieldval, tag)
+			for k, v := range nests {
+				result[k] = v
+			}
+		}
+	}
+	return result
+}
+
 func isTime(typ reflect.Type) bool {
 	return typ.Name() == "Time" || typ.String() == "*time.Time"
 }

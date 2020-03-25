@@ -321,3 +321,45 @@ func TestFillStructByTags_time_conversion(t *testing.T) {
 func TestFillStruct_time_conversion(t *testing.T) {
 	fillStructTime(false, t)
 }
+
+func ExampleMapTagsFlatten() {
+	type (
+		Last struct {
+			Final string `json:"final"`
+		}
+		Lv3 struct {
+			Lv3Str string `json:"lv3str"`
+			*Last
+		}
+		Lv2 struct {
+			Lv2Str string `json:"lv2str"`
+			Lv3
+		}
+		Lv1 struct {
+			Lv2
+			Lv1Str string `json:"lv1str"`
+		}
+	)
+
+	obj := Lv1{
+		Lv1Str: "level 1 string",
+		Lv2: Lv2{
+			Lv2Str: "level 2 string",
+			Lv3: Lv3{
+				Lv3Str: "level 3 string",
+				Last: &Last{
+					Final: "destination",
+				},
+			},
+		},
+	}
+
+	for k, v := range MapTagsFlatten(&obj, "json") {
+		fmt.Printf("key: %s, value: %v\n", k, v)
+	}
+	// Unordered Output:
+	// key: final, value: destination
+	// key: lv1str, value: level 1 string
+	// key: lv2str, value: level 2 string
+	// key: lv3str, value: level 3 string
+}
