@@ -8,9 +8,10 @@ import (
 )
 
 type source struct {
-	Label   string `json:"label"`
-	Info    string `json:"info"`
-	Version int    `json:"version"`
+	Label   string    `json:"label"`
+	Info    string    `json:"info"`
+	Version int       `json:"version"`
+	Toki    time.Time `json:"tomare"`
 }
 
 type sink struct {
@@ -19,9 +20,10 @@ type sink struct {
 }
 
 type differentSink struct {
-	DiffLabel string `json:"label"`
-	NiceInfo  string `json:"info"`
-	Version   string `json:"unversion"`
+	DiffLabel string    `json:"label"`
+	NiceInfo  string    `json:"info"`
+	Version   string    `json:"unversion"`
+	Toki      time.Time `json:"doki"`
 }
 
 type differentSourceSink struct {
@@ -29,10 +31,12 @@ type differentSourceSink struct {
 	DiffSink differentSink `json:"differentSink"`
 }
 
+var toki = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 var sourceobj source = source{
 	Label:   "source",
 	Info:    "the origin",
 	Version: 1,
+	Toki:    toki,
 }
 
 func printIfNotExists(mapped Mapped, keys ...string) {
@@ -62,13 +66,19 @@ func ExampleMapTags_nested() {
 			DiffLabel: "nested diff",
 			NiceInfo:  "nested info",
 			Version:   "next version",
+			Toki:      toki,
 		},
 	}
 	nestedMap := MapTags(&nestedSource, "json")
 	for k, v := range nestedMap {
 		fmt.Println("top key:", k)
 		for kk, vv := range v.(Mapped) {
-			fmt.Println("    nested:", kk, vv)
+			if vtime, ok := vv.(time.Time); ok {
+				fmt.Println("    nested:", kk, vtime.Format(time.RFC3339))
+			} else {
+
+				fmt.Println("    nested:", kk, vv)
+			}
 		}
 		fmt.Println()
 	}
@@ -77,11 +87,13 @@ func ExampleMapTags_nested() {
 	//     nested: label source
 	//     nested: info the origin
 	//     nested: version 1
+	//     nested: tomare 2000-01-01T00:00:00Z
 	//
 	// top key: differentSink
 	//     nested: label nested diff
 	//     nested: info nested info
 	//     nested: unversion next version
+	//     nested: doki 2000-01-01T00:00:00Z
 }
 
 type generalFields struct {
@@ -144,7 +156,12 @@ func ExampleFillStruct() {
 func ExampleFillStructByTags() {
 	maptags := MapTags(&sourceobj, "json")
 	for k, v := range maptags {
-		fmt.Printf("maptags[%s]: %v\n", k, v)
+		if vt, ok := v.(time.Time); ok {
+			fmt.Printf("maptags[%s]: %s\n", k, vt.Format(time.RFC3339))
+		} else {
+			fmt.Printf("maptags[%s]: %v\n", k, v)
+
+		}
 	}
 	diffsink := differentSink{}
 	err := FillStructByTags(&diffsink, maptags, "json")
@@ -152,11 +169,13 @@ func ExampleFillStructByTags() {
 		panic(err)
 	}
 	fmt.Println(diffsink)
+
 	// Unordered Output:
 	// maptags[label]: source
 	// maptags[info]: the origin
 	// maptags[version]: 1
-	// {source the origin }
+	// maptags[tomare]: 2000-01-01T00:00:00Z
+	// {source the origin  0001-01-01 00:00:00 +0000 UTC}
 }
 
 type RefLevel3 struct {
