@@ -52,13 +52,18 @@ func tagHead(tag string) string {
 
 func getValTag(fieldval reflect.Value, tag string) interface{} {
 	var resval interface{}
-	switch fieldval.Kind() {
-	case reflect.Struct:
-		resval = MapTags(fieldval, tag)
-	case reflect.Ptr:
-		resval = MapTags(fieldval.Elem(), tag)
-	default:
+	if fieldval.Type().Name() == "Time" {
 		resval = fieldval.Interface()
+	} else {
+		switch fieldval.Kind() {
+		case reflect.Struct:
+			resval = MapTags(fieldval, tag)
+		case reflect.Ptr:
+			resval = MapTags(fieldval.Elem(), tag)
+		default:
+			resval = fieldval.Interface()
+		}
+
 	}
 	return resval
 }
@@ -178,11 +183,12 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	val := reflect.ValueOf(value)
 	if isTime(sftype) {
 		var err error
-		val, err = handleTime(time.RFC3339, val.String(), sftype)
-		if err != nil {
-			return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+		if val.Type().Name() == "string" {
+			val, err = handleTime(time.RFC3339, val.String(), sftype)
+			if err != nil {
+				return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+			}
 		}
-
 	} else if sftype != val.Type() {
 		return false, fmt.Errorf("Provided value type not match object field type")
 	}
@@ -213,9 +219,11 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				}
 				res := reflect.New(vfield.Type()).Elem()
 				if isTime(vfield.Type()) {
-					val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
-					if err != nil {
-						return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+					if val.Type().Name() == "string" {
+						val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
+						if err != nil {
+							return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+						}
 					}
 				} else if res.IsValid() && val.Type().Name() == "Mapped" {
 					iter := val.MapRange()
