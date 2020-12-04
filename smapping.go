@@ -6,6 +6,8 @@ Golang mapping structure
 package smapping
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	s "strings"
@@ -294,4 +296,195 @@ func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 		}
 	}
 	return nil
+}
+
+func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructField,
+	tag string, index int, key string, obj, value interface{}) {
+	switch value.(type) {
+	case int:
+		mapvals[index] = new(int)
+	case int8:
+		mapvals[index] = new(int8)
+	case int16:
+		mapvals[index] = new(int16)
+	case int32:
+		mapvals[index] = new(int32)
+	case int64:
+		mapvals[index] = new(int64)
+	case uint:
+		mapvals[index] = new(uint)
+	case uint8:
+		mapvals[index] = new(uint8)
+	case uint16:
+		mapvals[index] = new(uint16)
+	case uint32:
+		mapvals[index] = new(uint32)
+	case uint64:
+		mapvals[index] = new(uint64)
+	case string:
+		mapvals[index] = new(string)
+	case float32:
+		mapvals[index] = new(float32)
+	case float64:
+		mapvals[index] = new(float64)
+	case bool:
+		mapvals[index] = new(bool)
+	case []byte:
+		mapvals[index] = new([]byte)
+	case sql.Scanner, driver.Valuer, Mapped:
+		mapvals[index] = new(interface{})
+		typof := reflect.TypeOf(obj).Elem()
+		if tag == "" {
+			strufield, ok := typof.FieldByName(key)
+			if !ok {
+				return
+			}
+			typof = strufield.Type
+		} else if strufield, ok := tagFields[key]; ok {
+			typof = strufield.Type
+		} else {
+			for i := 0; i < typof.NumField(); i++ {
+				strufield := typof.Field(i)
+				if tagval, ok := strufield.Tag.Lookup(tag); ok {
+					tagFields[key] = strufield
+					if tagHead(tagval) == key {
+						typof = strufield.Type
+						break
+					}
+				}
+			}
+		}
+
+		scannerI := reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+		if typof.Implements(scannerI) || reflect.PtrTo(typof).Implements(scannerI) {
+			valx := reflect.New(typof).Elem()
+			mapvals[index] = valx.Addr().Interface()
+		}
+	default:
+	}
+
+}
+
+func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
+	tag, key string, obj, value interface{}) {
+	switch value.(type) {
+	case *int8:
+		mapres[key] = *(value.(*int8))
+	case *int16:
+		mapres[key] = *(value.(*int16))
+	case *int32:
+		mapres[key] = *(value.(*int32))
+	case *int64:
+		mapres[key] = *(value.(*int64))
+	case *int:
+		mapres[key] = *(value.(*int))
+	case *uint8:
+		mapres[key] = *(value.(*uint8))
+	case *uint16:
+		mapres[key] = *(value.(*uint16))
+	case *uint32:
+		mapres[key] = *(value.(*uint32))
+	case *uint64:
+		mapres[key] = *(value.(*uint64))
+	case *uint:
+		mapres[key] = *(value.(*uint))
+	case *string:
+		mapres[key] = *(value.(*string))
+	case *bool:
+		mapres[key] = *(value.(*bool))
+	case *float32:
+		mapres[key] = *(value.(*float32))
+	case *float64:
+		mapres[key] = *(value.(*float64))
+	case *[]byte:
+		mapres[key] = *(value.(*[]byte))
+	case *driver.Valuer:
+	default:
+		typof := reflect.TypeOf(obj).Elem()
+		if tag == "" {
+			strufield, ok := typof.FieldByName(key)
+			if !ok {
+				return
+			}
+			typof = strufield.Type
+		} else if strufield, ok := tagFields[key]; ok {
+			typof = strufield.Type
+		} else {
+		lookupAssgn:
+			for i := 0; i < typof.NumField(); i++ {
+				strufield := typof.Field(i)
+				if tagval, ok := strufield.Tag.Lookup(tag); ok {
+					if tagHead(tagval) == key {
+						typof = strufield.Type
+						break lookupAssgn
+					}
+				}
+			}
+		}
+		valuerI := reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+		if typof.Implements(valuerI) || reflect.PtrTo(typof).Implements(valuerI) {
+			valx := reflect.New(typof).Elem()
+			valv := reflect.Indirect(reflect.ValueOf(value))
+			valx.Set(valv)
+			mapres[key] = valx.Interface()
+		}
+		// ignore if it's not recognized
+	}
+}
+
+// SQLScanner is the interface that dictate
+// any type that implement Scan method to
+// be compatible with sql.Row Scan method.
+type SQLScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+/*
+SQLScan is the function that will map scanning object based on provided
+field name or field tagged string. The tags can receive the empty string
+"" and then it will map the field name by default.
+*/
+func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
+	var mapres Mapped
+	if tag == "" {
+		mapres = MapFields(obj)
+	} else {
+		mapres = MapTags(obj, tag)
+	}
+	fieldsName := x
+	length := len(x)
+	if length == 0 || (length == 1 && x[0] == "*") {
+		typof := reflect.TypeOf(obj).Elem()
+		newfields := make([]string, typof.NumField())
+		length = typof.NumField()
+		for i := 0; i < length; i++ {
+			field := typof.Field(i)
+			if tag == "" {
+				newfields[i] = field.Name
+			} else {
+				if tagval, ok := field.Tag.Lookup(tag); ok {
+					newfields[i] = tagHead(tagval)
+				}
+			}
+		}
+		fieldsName = newfields
+	}
+	mapvals := make([]interface{}, length)
+	tagFields := make(map[string]reflect.StructField)
+	for i, k := range fieldsName {
+		assignScanner(mapvals, tagFields, tag, i, k, obj, mapres[k])
+	}
+	if err := row.Scan(mapvals...); err != nil {
+		return err
+	}
+	for i, k := range fieldsName {
+		assignValuer(mapres, tagFields, tag, k, obj, mapvals[i])
+	}
+	var err error
+	if tag == "" {
+		err = FillStruct(obj, mapres)
+	} else {
+		err = FillStructByTags(obj, mapres, tag)
+	}
+	return err
 }
