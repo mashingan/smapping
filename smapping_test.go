@@ -516,3 +516,26 @@ func ExampleSQLScan_suppliedFields() {
 	// result.NullTime.Time.Equal(dr.Values.NullTime.Time)? true
 	// result.Uint64 == 5
 }
+
+func ExampleSQLScan_allFields() {
+	currtime := time.Now()
+	dr := createDummyRow(currtime)
+	result := dummyValues{}
+	if err := SQLScan(dr, &result, ""); err != nil {
+		fmt.Println("Error happened!")
+		return
+	}
+	fmt.Printf("NullString is Valid? %t\n", result.NullString.Valid)
+	fmt.Printf("result.NullString is %s\n", result.NullString.String)
+	fmt.Printf("NullTime is Valid? %t\n", result.NullTime.Valid)
+	fmt.Printf("result.NullTime.Time.Equal(dr.Values.NullTime.Time)? %t\n",
+		result.NullTime.Time.Equal(dr.Values.NullTime.Time))
+	fmt.Printf("result.Uint64 == %d\n", result.Uint64)
+
+	// output:
+	// NullString is Valid? true
+	// result.NullString is hello 異世界
+	// NullTime is Valid? true
+	// result.NullTime.Time.Equal(dr.Values.NullTime.Time)? true
+	// result.Uint64 == 5
+}

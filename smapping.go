@@ -451,15 +451,33 @@ func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
 	} else {
 		mapres = MapTags(obj, tag)
 	}
-	mapvals := make([]interface{}, len(x))
+	fieldsName := x
+	length := len(x)
+	if length == 0 || (length == 1 && x[0] == "*") {
+		typof := reflect.TypeOf(obj).Elem()
+		newfields := make([]string, typof.NumField())
+		length = typof.NumField()
+		for i := 0; i < length; i++ {
+			field := typof.Field(i)
+			if tag == "" {
+				newfields[i] = field.Name
+			} else {
+				if tagval, ok := field.Tag.Lookup(tag); ok {
+					newfields[i] = tagHead(tagval)
+				}
+			}
+		}
+		fieldsName = newfields
+	}
+	mapvals := make([]interface{}, length)
 	tagFields := make(map[string]reflect.StructField)
-	for i, k := range x {
+	for i, k := range fieldsName {
 		assignScanner(mapvals, tagFields, tag, i, k, obj, mapres[k])
 	}
 	if err := row.Scan(mapvals...); err != nil {
 		return err
 	}
-	for i, k := range x {
+	for i, k := range fieldsName {
 		assignValuer(mapres, tagFields, tag, k, obj, mapvals[i])
 	}
 	var err error
