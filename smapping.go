@@ -303,8 +303,28 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 	switch value.(type) {
 	case int:
 		mapvals[index] = new(int)
+	case int8:
+		mapvals[index] = new(int8)
+	case int16:
+		mapvals[index] = new(int16)
+	case int32:
+		mapvals[index] = new(int32)
+	case int64:
+		mapvals[index] = new(int64)
+	case uint:
+		mapvals[index] = new(uint)
+	case uint8:
+		mapvals[index] = new(uint8)
+	case uint16:
+		mapvals[index] = new(uint16)
+	case uint32:
+		mapvals[index] = new(uint32)
+	case uint64:
+		mapvals[index] = new(uint64)
 	case string:
 		mapvals[index] = new(string)
+	case float32:
+		mapvals[index] = new(float32)
 	case float64:
 		mapvals[index] = new(float64)
 	case bool:
@@ -348,12 +368,32 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 	tag, key string, obj, value interface{}) {
 	switch value.(type) {
+	case *int8:
+		mapres[key] = *(value.(*int8))
+	case *int16:
+		mapres[key] = *(value.(*int16))
+	case *int32:
+		mapres[key] = *(value.(*int32))
+	case *int64:
+		mapres[key] = *(value.(*int64))
 	case *int:
 		mapres[key] = *(value.(*int))
+	case *uint8:
+		mapres[key] = *(value.(*uint8))
+	case *uint16:
+		mapres[key] = *(value.(*uint16))
+	case *uint32:
+		mapres[key] = *(value.(*uint32))
+	case *uint64:
+		mapres[key] = *(value.(*uint64))
+	case *uint:
+		mapres[key] = *(value.(*uint))
 	case *string:
 		mapres[key] = *(value.(*string))
 	case *bool:
 		mapres[key] = *(value.(*bool))
+	case *float32:
+		mapres[key] = *(value.(*float32))
 	case *float64:
 		mapres[key] = *(value.(*float64))
 	case *[]byte:
