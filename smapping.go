@@ -431,12 +431,19 @@ func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 	}
 }
 
+// SQLScanner is the interface that dictate
+// any type that implement Scan method to
+// be compatible with sql.Row Scan method.
+type SQLScanner interface {
+	Scan(dest ...interface{}) error
+}
+
 /*
 SQLScan is the function that will map scanning object based on provided
 field name or field tagged string. The tags can receive the empty string
 "" and then it will map the field name by default.
 */
-func SQLScan(row *sql.Row, obj interface{}, tag string, x ...string) error {
+func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
 	var mapres Mapped
 	if tag == "" {
 		mapres = MapFields(obj)
