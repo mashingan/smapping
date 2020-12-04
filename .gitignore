@@ -25,3 +25,6 @@ nim.cfg
 
 # built folder if available
 build/
+
+# ignore go.sum
+go.sum
