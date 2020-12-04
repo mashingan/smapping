@@ -413,7 +413,6 @@ type dummyRow struct {
 }
 
 func (dr *dummyRow) Scan(dest ...interface{}) error {
-	fmt.Println("dest:", dest)
 	for i, x := range dest {
 		switch x.(type) {
 		case *int:
@@ -463,7 +462,7 @@ func (dr *dummyRow) Scan(dest ...interface{}) error {
 	return nil
 }
 
-func createDummyRow(destTime time.Time) SQLScanner {
+func createDummyRow(destTime time.Time) *dummyRow {
 	return &dummyRow{
 		Values: dummyValues{
 			Int:         -5,
@@ -495,14 +494,25 @@ func ExampleSQLScan_suppliedFields() {
 	currtime := time.Now()
 	dr := createDummyRow(currtime)
 	result := dummyValues{}
-	if err := SQLScan(dr, &result, "",
+	if err := SQLScan(dr, &result,
+		"", /* This is the tag, since we don't have so put it empty
+		to match the field name */
+		/* Below arguments are variadic and we only take several
+		   fields from all available dummyValues */
 		"Int32", "Uint64", "Bool", "Bytes",
 		"NullString", "NullTime"); err != nil {
 		fmt.Println("Error happened!")
 		return
 	}
-	fmt.Println("NullString is Valid?", result.NullString.Valid)
+	fmt.Printf("NullString is Valid? %t\n", result.NullString.Valid)
+	fmt.Printf("NullTime is Valid? %t\n", result.NullTime.Valid)
+	fmt.Printf("result.NullTime.Time.Equal(dr.Values.NullTime.Time)? %t\n",
+		result.NullTime.Time.Equal(dr.Values.NullTime.Time))
+	fmt.Printf("result.Uint64 == %d\n", result.Uint64)
+
 	// output:
 	// NullString is Valid? true
-	//
+	// NullTime is Valid? true
+	// result.NullTime.Time.Equal(dr.Values.NullTime.Time)? true
+	// result.Uint64 == 5
 }

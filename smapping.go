@@ -331,7 +331,7 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 		mapvals[index] = new(bool)
 	case []byte:
 		mapvals[index] = new([]byte)
-	case sql.Scanner, Mapped:
+	case sql.Scanner, driver.Valuer, Mapped:
 		mapvals[index] = new(interface{})
 		typof := reflect.TypeOf(obj).Elem()
 		if tag == "" {
@@ -398,6 +398,7 @@ func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 		mapres[key] = *(value.(*float64))
 	case *[]byte:
 		mapres[key] = *(value.(*[]byte))
+	case *driver.Valuer:
 	default:
 		typof := reflect.TypeOf(obj).Elem()
 		if tag == "" {
@@ -459,49 +460,7 @@ func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
 		return err
 	}
 	for i, k := range x {
-		switch mapvals[i].(type) {
-		case *int:
-			mapres[k] = *(mapvals[i].(*int))
-		case *string:
-			mapres[k] = *(mapvals[i].(*string))
-		case *bool:
-			mapres[k] = *(mapvals[i].(*bool))
-		case *float64:
-			mapres[k] = *(mapvals[i].(*float64))
-		case *[]byte:
-			mapres[k] = *(mapvals[i].(*[]byte))
-		default:
-			typof := reflect.TypeOf(obj).Elem()
-			if tag == "" {
-				strufield, ok := typof.FieldByName(k)
-				if !ok {
-					continue
-				}
-				typof = strufield.Type
-			} else if strufield, ok := tagFields[k]; ok {
-				typof = strufield.Type
-			} else {
-			lookupAssgn:
-				for i := 0; i < typof.NumField(); i++ {
-					strufield := typof.Field(i)
-					if tagval, ok := strufield.Tag.Lookup(tag); ok {
-						if s.Split(tagval, ",")[0] == k {
-							typof = strufield.Type
-							break lookupAssgn
-						}
-					}
-				}
-			}
-			valuerI := reflect.TypeOf((*driver.Valuer)(nil)).Elem()
-			if typof.Implements(valuerI) || reflect.PtrTo(typof).Implements(valuerI) {
-				valx := reflect.New(typof).Elem()
-				valv := reflect.Indirect(reflect.ValueOf(mapvals[i]))
-				valx.Set(valv)
-				mapres[k] = valx.Interface()
-				continue
-			}
-			// ignore if it's not recognized
-		}
+		assignValuer(mapres, tagFields, tag, k, obj, mapvals[i])
 	}
 	var err error
 	if tag == "" {
