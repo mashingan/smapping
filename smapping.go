@@ -6,6 +6,8 @@ Golang mapping structure
 package smapping
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	s "strings"
@@ -294,4 +296,171 @@ func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 		}
 	}
 	return nil
+}
+
+func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructField,
+	tag string, index int, key string, obj, value interface{}) {
+	switch value.(type) {
+	case int:
+		mapvals[index] = new(int)
+	case string:
+		mapvals[index] = new(string)
+	case float64:
+		mapvals[index] = new(float64)
+	case bool:
+		mapvals[index] = new(bool)
+	case []byte:
+		mapvals[index] = new([]byte)
+	case sql.Scanner, Mapped:
+		mapvals[index] = new(interface{})
+		typof := reflect.TypeOf(obj).Elem()
+		if tag == "" {
+			strufield, ok := typof.FieldByName(key)
+			if !ok {
+				return
+			}
+			typof = strufield.Type
+		} else if strufield, ok := tagFields[key]; ok {
+			typof = strufield.Type
+		} else {
+			for i := 0; i < typof.NumField(); i++ {
+				strufield := typof.Field(i)
+				if tagval, ok := strufield.Tag.Lookup(tag); ok {
+					tagFields[key] = strufield
+					if tagHead(tagval) == key {
+						typof = strufield.Type
+						break
+					}
+				}
+			}
+		}
+
+		scannerI := reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+		if typof.Implements(scannerI) || reflect.PtrTo(typof).Implements(scannerI) {
+			valx := reflect.New(typof).Elem()
+			mapvals[index] = valx.Addr().Interface()
+		}
+	default:
+	}
+
+}
+
+func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
+	tag, key string, obj, value interface{}) {
+	switch value.(type) {
+	case *int:
+		mapres[key] = *(value.(*int))
+	case *string:
+		mapres[key] = *(value.(*string))
+	case *bool:
+		mapres[key] = *(value.(*bool))
+	case *float64:
+		mapres[key] = *(value.(*float64))
+	case *[]byte:
+		mapres[key] = *(value.(*[]byte))
+	default:
+		typof := reflect.TypeOf(obj).Elem()
+		if tag == "" {
+			strufield, ok := typof.FieldByName(key)
+			if !ok {
+				return
+			}
+			typof = strufield.Type
+		} else if strufield, ok := tagFields[key]; ok {
+			typof = strufield.Type
+		} else {
+		lookupAssgn:
+			for i := 0; i < typof.NumField(); i++ {
+				strufield := typof.Field(i)
+				if tagval, ok := strufield.Tag.Lookup(tag); ok {
+					if tagHead(tagval) == key {
+						typof = strufield.Type
+						break lookupAssgn
+					}
+				}
+			}
+		}
+		valuerI := reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+		if typof.Implements(valuerI) || reflect.PtrTo(typof).Implements(valuerI) {
+			valx := reflect.New(typof).Elem()
+			valv := reflect.Indirect(reflect.ValueOf(value))
+			valx.Set(valv)
+			mapres[key] = valx.Interface()
+		}
+		// ignore if it's not recognized
+	}
+}
+
+/*
+SQLScan is the function that will map scanning object based on provided
+field name or field tagged string. The tags can receive the empty string
+"" and then it will map the field name by default.
+*/
+func SQLScan(row *sql.Row, obj interface{}, tag string, x ...string) error {
+	var mapres Mapped
+	if tag == "" {
+		mapres = MapFields(obj)
+	} else {
+		mapres = MapTags(obj, tag)
+	}
+	mapvals := make([]interface{}, len(x))
+	tagFields := make(map[string]reflect.StructField)
+	for i, k := range x {
+		assignScanner(mapvals, tagFields, tag, i, k, obj, mapres[k])
+	}
+	if err := row.Scan(mapvals...); err != nil {
+		return err
+	}
+	for i, k := range x {
+		switch mapvals[i].(type) {
+		case *int:
+			mapres[k] = *(mapvals[i].(*int))
+		case *string:
+			mapres[k] = *(mapvals[i].(*string))
+		case *bool:
+			mapres[k] = *(mapvals[i].(*bool))
+		case *float64:
+			mapres[k] = *(mapvals[i].(*float64))
+		case *[]byte:
+			mapres[k] = *(mapvals[i].(*[]byte))
+		default:
+			typof := reflect.TypeOf(obj).Elem()
+			if tag == "" {
+				strufield, ok := typof.FieldByName(k)
+				if !ok {
+					continue
+				}
+				typof = strufield.Type
+			} else if strufield, ok := tagFields[k]; ok {
+				typof = strufield.Type
+			} else {
+			lookupAssgn:
+				for i := 0; i < typof.NumField(); i++ {
+					strufield := typof.Field(i)
+					if tagval, ok := strufield.Tag.Lookup(tag); ok {
+						if s.Split(tagval, ",")[0] == k {
+							typof = strufield.Type
+							break lookupAssgn
+						}
+					}
+				}
+			}
+			valuerI := reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+			if typof.Implements(valuerI) || reflect.PtrTo(typof).Implements(valuerI) {
+				valx := reflect.New(typof).Elem()
+				valv := reflect.Indirect(reflect.ValueOf(mapvals[i]))
+				valx.Set(valv)
+				mapres[k] = valx.Interface()
+				continue
+			}
+			// ignore if it's not recognized
+		}
+	}
+	var err error
+	if tag == "" {
+		err = FillStruct(obj, mapres)
+	} else {
+		err = FillStructByTags(obj, mapres, tag)
+	}
+	return err
 }
