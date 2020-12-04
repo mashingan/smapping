@@ -1,6 +1,7 @@
 package smapping
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -381,4 +382,127 @@ func ExampleMapTagsFlatten() {
 	// key: lv1str, value: level 1 string
 	// key: lv2str, value: level 2 string
 	// key: lv3str, value: level 3 string
+}
+
+type dummyValues struct {
+	Int     int
+	Int8    int8
+	Int16   int16
+	Int32   int32
+	Int64   int64
+	Uint    uint
+	Uint8   uint8
+	Uint16  uint16
+	Uint32  uint32
+	Uint64  uint64
+	Float32 float32
+	Float64 float64
+	Bool    bool
+	String  string
+	Bytes   []byte
+	sql.NullBool
+	sql.NullFloat64
+	sql.NullInt32
+	sql.NullInt64
+	sql.NullString
+	sql.NullTime
+}
+
+type dummyRow struct {
+	Values dummyValues
+}
+
+func (dr *dummyRow) Scan(dest ...interface{}) error {
+	fmt.Println("dest:", dest)
+	for i, x := range dest {
+		switch x.(type) {
+		case *int:
+			dest[i] = &dr.Values.Int
+		case *int8:
+			dest[i] = &dr.Values.Int8
+		case *int16:
+			dest[i] = &dr.Values.Int16
+		case *int32:
+			dest[i] = &dr.Values.Int32
+		case *int64:
+			dest[i] = &dr.Values.Int64
+		case *uint:
+			dest[i] = &dr.Values.Uint
+		case *uint8:
+			dest[i] = &dr.Values.Uint8
+		case *uint16:
+			dest[i] = &dr.Values.Uint16
+		case *uint32:
+			dest[i] = &dr.Values.Uint32
+		case *uint64:
+			dest[i] = &dr.Values.Uint64
+		case *float32:
+			dest[i] = &dr.Values.Float32
+		case *float64:
+			dest[i] = &dr.Values.Float64
+		case *string:
+			dest[i] = &dr.Values.String
+		case *[]byte:
+			dest[i] = &dr.Values.Bytes
+		case *bool:
+			dest[i] = &dr.Values.Bool
+		case *sql.NullBool:
+			dest[i] = &dr.Values.NullBool
+		case *sql.NullFloat64:
+			dest[i] = &dr.Values.NullFloat64
+		case *sql.NullInt32:
+			dest[i] = &dr.Values.NullInt32
+		case *sql.NullInt64:
+			dest[i] = &dr.Values.NullInt64
+		case *sql.NullString:
+			dest[i] = &dr.Values.NullString
+		case *sql.NullTime:
+			dest[i] = &dr.Values.NullTime
+		}
+	}
+	return nil
+}
+
+func createDummyRow(destTime time.Time) SQLScanner {
+	return &dummyRow{
+		Values: dummyValues{
+			Int:         -5,
+			Int8:        -4,
+			Int16:       -3,
+			Int32:       -2,
+			Int64:       -1,
+			Uint:        1,
+			Uint8:       2,
+			Uint16:      3,
+			Uint32:      4,
+			Uint64:      5,
+			Float32:     42.1,
+			Float64:     42.2,
+			Bool:        true,
+			String:      "hello 異世界",
+			Bytes:       []byte("hello 異世界"),
+			NullBool:    sql.NullBool{Bool: true, Valid: true},
+			NullFloat64: sql.NullFloat64{Float64: 42.2, Valid: true},
+			NullInt32:   sql.NullInt32{Int32: 421, Valid: true},
+			NullInt64:   sql.NullInt64{Int64: 422, Valid: true},
+			NullString:  sql.NullString{String: "hello 異世界", Valid: true},
+			NullTime:    sql.NullTime{Time: destTime, Valid: true},
+		},
+	}
+}
+
+func ExampleSQLScan_suppliedFields() {
+	currtime := time.Now()
+	dr := createDummyRow(currtime)
+	result := dummyValues{}
+	if err := SQLScan(dr, &result, "",
+		"Int32", "Uint64", "Bool", "Bytes",
+		"NullString", "NullTime"); err != nil {
+		fmt.Println("Error happened!")
+		return
+	}
+	fmt.Println("NullString is Valid?", result.NullString.Valid)
+	// output:
+	// NullString is Valid? true
+	//
 }
