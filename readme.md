@@ -6,7 +6,8 @@
 Golang structs generic mapping.
 
 ### Version Limit
-To support nesting object conversion, the lowest Golang version supported is `1.12.0`.
+To support nesting object conversion, the lowest Golang version supported is `1.12.0`.  
+To support `smapping.SQLScan`, the lowest Golang version supported is `1.13.0`.
 
 # Table of Contents
 1. [Motivation At Glimpse](#at-glimpse).
