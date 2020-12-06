@@ -14,35 +14,44 @@ Examples
 
 The snippet code below will be used accross example for brevity
 
-    type source struct {
-	Label   string `json:"label"`
-	Info    string `json:"info"`
-	Version int    `json:"version"`
-    }
-
-    type sink struct {
-	Label string	// note that we don't include struct tag
-	Info  string
-    }
-
-    type differentSink struct {
-	DiffLabel string `json:"label"`	    // note that this struct
-	NiceInfo  string `json:"info"`	    // has different field name
-	Version   string `json:"unversion"` // but same json tag
-    }
-
-    var sourceobj source = source{
-	Label:   "source",
-	Info:    "the origin",
-	Version: 1,
-    }
-
-    func printIfNotExists(mapped Mapped, keys ...string) {
-	for _, key := range keys {
-	    if _, ok := mapped[key]; !ok {
-		fmt.Println(false)
-	    }
+	type source struct {
+		Label   string    `json:"label"`
+		Info    string    `json:"info"`
+		Version int       `json:"version"`
+		Toki    time.Time `json:"tomare"`
 	}
-    }
+
+	type sink struct {
+		Label string
+		Info  string
+	}
+
+	type differentSink struct {
+		DiffLabel string    `json:"label"`
+		NiceInfo  string    `json:"info"`
+		Version   string    `json:"unversion"`
+		Toki      time.Time `json:"doki"`
+	}
+
+	type differentSourceSink struct {
+		Source   source        `json:"source"`
+		DiffSink differentSink `json:"differentSink"`
+	}
+
+	var toki = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	var sourceobj source = source{
+		Label:   "source",
+		Info:    "the origin",
+		Version: 1,
+		Toki:    toki,
+	}
+
+	func printIfNotExists(mapped Mapped, keys ...string) {
+		for _, key := range keys {
+			if _, ok := mapped[key]; !ok {
+				fmt.Println(key, ": not exists")
+			}
+		}
+	}
 */
 package smapping
