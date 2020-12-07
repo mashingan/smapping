@@ -206,61 +206,59 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 		if field.PkgPath != "" {
 			continue
 		}
+		vfield := sval.Field(i)
+		var err error
 		if tag, ok := field.Tag.Lookup(tagname); ok {
-			var err error
-			vfield := sval.Field(i)
 			if !vfield.IsValid() || !vfield.CanSet() {
 				return false, nil
-			} else if tag != tagvalue {
+			} else if tagHead(tag) != tagvalue {
 				continue
-			} else {
-				val := reflect.ValueOf(value)
-				gotptr := false
-				if vfield.Kind() == reflect.Ptr {
-					gotptr = true
-				}
-				res := reflect.New(vfield.Type()).Elem()
-				if isTime(vfield.Type()) {
-					if val.Type().Name() == "string" {
-						val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
-						if err != nil {
-							return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
-						}
-					}
-				} else if res.IsValid() && val.Type().Name() == "Mapped" {
-					iter := val.MapRange()
-					m := Mapped{}
-					for iter.Next() {
-						m[iter.Key().String()] = iter.Value().Interface()
-					}
-					if gotptr {
-						vval := vfield.Type().Elem()
-						ptrres := reflect.New(vval).Elem()
-						for k, v := range m {
-							success, err := setFieldFromTag(ptrres, tagname, k, v)
-							if err != nil {
-								return false, fmt.Errorf("Ptr nested error: %s", err.Error())
-							}
-							if !success {
-								continue
-							}
-						}
-						val = ptrres.Addr()
-					} else {
-						if err := FillStructByTags(res, m, tagname); err != nil {
-							return false, fmt.Errorf("Nested error: %s", err.Error())
-						}
-						val = res
-					}
-				} else if field.Type != val.Type() {
-					return false, fmt.Errorf("Provided value type not match field object")
-				}
-				vfield.Set(val)
-				return true, nil
 			}
 		}
+		val := reflect.ValueOf(value)
+		gotptr := false
+		if vfield.Kind() == reflect.Ptr {
+			gotptr = true
+		}
+		res := reflect.New(vfield.Type()).Elem()
+		if isTime(vfield.Type()) {
+			if val.Type().Name() == "string" {
+				val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
+				if err != nil {
+					return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
+				}
+			}
+		} else if res.IsValid() && val.Type().Name() == "Mapped" {
+			iter := val.MapRange()
+			m := Mapped{}
+			for iter.Next() {
+				m[iter.Key().String()] = iter.Value().Interface()
+			}
+			if gotptr {
+				vval := vfield.Type().Elem()
+				ptrres := reflect.New(vval).Elem()
+				for k, v := range m {
+					success, err := setFieldFromTag(ptrres, tagname, k, v)
+					if err != nil {
+						return false, fmt.Errorf("Ptr nested error: %s", err.Error())
+					}
+					if !success {
+						continue
+					}
+				}
+				val = ptrres.Addr()
+			} else {
+				if err := FillStructByTags(res, m, tagname); err != nil {
+					return false, fmt.Errorf("Nested error: %s", err.Error())
+				}
+				val = res
+			}
+		} else if field.Type != val.Type() {
+			return false, fmt.Errorf("Provided value type not match field object")
+		}
+		vfield.Set(val)
+		return true, nil
 	}
-	//}
 	return false, nil
 }
 
