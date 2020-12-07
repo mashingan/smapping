@@ -207,13 +207,20 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			continue
 		}
 		vfield := sval.Field(i)
-		var err error
-		if tag, ok := field.Tag.Lookup(tagname); ok {
+		var (
+			tag string
+			ok  bool
+			err error
+		)
+		if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
 				return false, nil
 			} else if tagHead(tag) != tagvalue {
 				continue
 			}
+		}
+		if !ok {
+			continue
 		}
 		val := reflect.ValueOf(value)
 		gotptr := false
