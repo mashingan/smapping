@@ -345,30 +345,38 @@ func TestFillStruct_time_conversion(t *testing.T) {
 func ExampleMapTagsFlatten() {
 	type (
 		Last struct {
-			Final string `json:"final"`
+			Final       string `json:"final"`
+			Destination string
 		}
 		Lv3 struct {
 			Lv3Str string `json:"lv3str"`
 			*Last
+			Lv3Dummy string
 		}
 		Lv2 struct {
 			Lv2Str string `json:"lv2str"`
 			Lv3
+			Lv2Dummy string
 		}
 		Lv1 struct {
 			Lv2
-			Lv1Str string `json:"lv1str"`
+			Lv1Str   string `json:"lv1str"`
+			Lv1Dummy string
 		}
 	)
 
 	obj := Lv1{
-		Lv1Str: "level 1 string",
+		Lv1Str:   "level 1 string",
+		Lv1Dummy: "baka",
 		Lv2: Lv2{
-			Lv2Str: "level 2 string",
+			Lv2Dummy: "bakabaka",
+			Lv2Str:   "level 2 string",
 			Lv3: Lv3{
-				Lv3Str: "level 3 string",
+				Lv3Dummy: "bakabakka",
+				Lv3Str:   "level 3 string",
 				Last: &Last{
-					Final: "destination",
+					Final:       "destination",
+					Destination: "overloop",
 				},
 			},
 		},
