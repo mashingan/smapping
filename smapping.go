@@ -139,15 +139,18 @@ func MapTagsFlatten(x interface{}, tag string) Mapped {
 		if tagvalue, ok := field.Tag.Lookup(tag); ok {
 			key := tagHead(tagvalue)
 			result[key] = fieldval.Interface()
-		} else {
-			fkind := fieldval.Kind()
-			if fkind == reflect.Ptr {
-				fieldval = fieldval.Elem()
-			}
-			nests := MapTagsFlatten(fieldval, tag)
-			for k, v := range nests {
-				result[k] = v
-			}
+			continue
+		}
+		fkind := fieldval.Kind()
+		if fkind == reflect.Ptr {
+			fieldval = fieldval.Elem()
+		}
+		if fieldval.Type().Kind() != reflect.Struct {
+			continue
+		}
+		nests := MapTagsFlatten(fieldval, tag)
+		for k, v := range nests {
+			result[k] = v
 		}
 	}
 	return result
