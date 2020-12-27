@@ -195,7 +195,8 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 			}
 		}
 	} else if sftype != val.Type() {
-		return false, fmt.Errorf("Provided value type not match object field type")
+		return false, fmt.Errorf("Provided value (%v) type not match object field '%s' type",
+			value, name)
 	}
 	sfval.Set(val)
 	return true, nil
@@ -264,7 +265,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				val = res
 			}
 		} else if field.Type != val.Type() {
-			return false, fmt.Errorf("Provided value type not match field object")
+			return false, fmt.Errorf("Provided value (%v) type not match field tag '%s' of tagname '%s' from object",
+				value, tagname, tagvalue)
 		}
 		vfield.Set(val)
 		return true, nil
@@ -277,14 +279,21 @@ FillStruct acts just like ``json.Unmarshal`` but works with ``Mapped``
 instead of bytes of char that made from ``json``.
 */
 func FillStruct(obj interface{}, mapped Mapped) error {
+	errmsg := ""
 	for k, v := range mapped {
 		exists, err := setField(obj, k, v)
 		if err != nil {
-			return err
+			if errmsg != "" {
+				errmsg += ","
+			}
+			errmsg += err.Error()
 		}
 		if !exists {
 			continue
 		}
+	}
+	if errmsg != "" {
+		return fmt.Errorf(errmsg)
 	}
 	return nil
 }
@@ -294,14 +303,21 @@ FillStructByTags fills the field that has tagname and tagvalue
 instead of Mapped key name.
 */
 func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
+	errmsg := ""
 	for k, v := range mapped {
 		exists, err := setFieldFromTag(obj, tagname, k, v)
 		if err != nil {
-			return err
+			if errmsg != "" {
+				errmsg += ","
+			}
+			errmsg += err.Error()
 		}
 		if !exists {
 			continue
 		}
+	}
+	if errmsg != "" {
+		return fmt.Errorf(errmsg)
 	}
 	return nil
 }

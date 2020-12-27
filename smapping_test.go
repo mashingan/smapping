@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -546,4 +547,104 @@ func ExampleSQLScan_allFields() {
 	// NullTime is Valid? true
 	// result.NullTime.Time.Equal(dr.Values.NullTime.Time)? true
 	// result.Uint64 == 5
+}
+
+func notin(s string, pool ...string) bool {
+	for _, sp := range pool {
+		if s == sp {
+			return false
+		}
+	}
+	return true
+}
+
+func compareErrorReports(t *testing.T, msgfmt string, msgs, errval, errfield []string) {
+	for _, msg := range msgs {
+		reader := strings.NewReader(msg)
+		var (
+			v1, v2, v3, v4 string
+			field          string
+		)
+		n, err := fmt.Fscanf(reader, msgfmt, &v1, &v2, &v3, &v4, &field)
+		v4 = v4[:len(v4)-1]
+		field = field[:len(field)-1]
+		if n != 5 {
+			t.Errorf("Scanned values should 5 but got %d", n)
+			continue
+		}
+		if err != nil {
+			t.Errorf(err.Error())
+			continue
+		}
+		value := strings.Join([]string{v1, v2, v3, v4}, " ")
+		if notin(value, errval...) {
+			t.Errorf("value '%s' not found", value)
+		}
+		if notin(field, errfield...) {
+			t.Errorf("field '%s' not found", field)
+		}
+	}
+}
+
+func TestBetterErrorReporting(t *testing.T) {
+	type SomeStruct struct {
+		Field1 int      `errtag:"fieldint"`
+		Field2 bool     `errtag:"fieldbol"`
+		Field3 string   `errtag:"fieldstr"`
+		Field4 float64  `errtag:"fieldflo"`
+		Field5 struct{} `errtag:"fieldsru"`
+	}
+	field1 := "this should be int"
+	field2 := "this should be boolean"
+	field3 := "this is succesfully converted"
+	field4 := "this should be float64"
+	field5 := "this should be struct"
+	ssmap := Mapped{
+		"Field1": field1,
+		"Field2": field2,
+		"Field3": field3,
+		"Field4": field4,
+		"Field5": field5,
+	}
+	ss := SomeStruct{}
+	err := FillStruct(&ss, ssmap)
+	if err == nil {
+		t.Errorf("Error should not nil")
+	}
+	if ss.Field3 != field3 {
+		t.Errorf("ss.Field3 expected '%s' but got '%s'", field3, ss.Field3)
+	}
+	errmsg := err.Error()
+	msgs := strings.Split(errmsg, ",")
+	if len(msgs) == 0 {
+		t.Errorf("Error message should report more than one field, got 0 report")
+	}
+	msgfmt := "Provided value (%s %s %s %s type not match object field '%s type"
+	errval := []string{field1, field2, field4, field5}
+	errfield := []string{"Field1", "Field2", "Field4", "Field5"}
+	compareErrorReports(t, msgfmt, msgs, errval, errfield)
+
+	ssmaptag := Mapped{
+		"fieldint": field1,
+		"fieldbol": field2,
+		"fieldstr": field3,
+		"fieldflo": field4,
+		"fieldsru": field5,
+	}
+	ss = SomeStruct{}
+	err = FillStructByTags(&ss, ssmaptag, "errtag")
+	if err == nil {
+		t.Errorf("Error should not nil")
+	}
+	if ss.Field3 != field3 {
+		t.Errorf("ss.Field3 expected '%s' but got '%s'", field3, ss.Field3)
+	}
+	errmsg = err.Error()
+	msgs = strings.Split(errmsg, ",")
+	if len(msgs) == 0 {
+		t.Errorf("Error message should report more than one field, got 0 report")
+	}
+	msgfmt = "Provided value (%s %s %s %s type not match field tag 'errtag' of tagname '%s from object"
+	errfield = []string{"fieldint", "fieldbol", "fieldflo", "fieldsru"}
+	compareErrorReports(t, msgfmt, msgs, errval, errfield)
 }
