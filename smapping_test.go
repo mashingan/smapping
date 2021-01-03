@@ -701,9 +701,9 @@ func TestNilValue(t *testing.T) {
 		t.Errorf("Should not fail: %v", err)
 	}
 	for i, obj := range fillobjsem.Objs {
-		if obj == nil && i != 3 {
+		if obj == nil && i != 2 {
 			t.Errorf("index %d of object value %v should not nil", i, obj)
-		} else if i == 3 && obj != nil {
+		} else if i == 2 && obj != nil {
 			t.Errorf("index 3 of object value %v should be nil", obj)
 		}
 	}
@@ -714,9 +714,9 @@ func TestNilValue(t *testing.T) {
 		t.Errorf("Should not fail: %v", err)
 	}
 	for i, obj := range fillobjsem.Objs {
-		if obj == nil && i != 3 {
+		if obj == nil && i != 2 {
 			t.Errorf("index %d of object value %v should not nil", i, obj)
-		} else if i == 3 && obj != nil {
+		} else if i == 2 && obj != nil {
 			t.Errorf("index 3 of object value %v should be nil", obj)
 		}
 	}
