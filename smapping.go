@@ -52,8 +52,24 @@ func tagHead(tag string) string {
 	return s.Split(tag, ",")[0]
 }
 
+func isValueNil(v reflect.Value) bool {
+	for _, kind := range []reflect.Kind{
+		reflect.Ptr, reflect.Slice, reflect.Map,
+		reflect.Chan, reflect.Interface, reflect.Func,
+	} {
+		if v.Kind() == kind && v.IsNil() {
+			return true
+		}
+
+	}
+	return false
+}
+
 func getValTag(fieldval reflect.Value, tag string) interface{} {
 	var resval interface{}
+	if isValueNil(fieldval) {
+		return nil
+	}
 	if fieldval.Type().Name() == "Time" {
 		resval = fieldval.Interface()
 	} else {
@@ -77,6 +93,9 @@ various field extraction that will be mapped to mapped interfaces{}.
 func MapTags(x interface{}, tag string) Mapped {
 	result := make(Mapped)
 	value := extractValue(x)
+	if !value.IsValid() {
+		return nil
+	}
 	xtype := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := xtype.Field(i)
@@ -281,6 +300,9 @@ instead of bytes of char that made from ``json``.
 func FillStruct(obj interface{}, mapped Mapped) error {
 	errmsg := ""
 	for k, v := range mapped {
+		if v == nil {
+			continue
+		}
 		exists, err := setField(obj, k, v)
 		if err != nil {
 			if errmsg != "" {
@@ -305,6 +327,9 @@ instead of Mapped key name.
 func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 	errmsg := ""
 	for k, v := range mapped {
+		if v == nil {
+			continue
+		}
 		exists, err := setFieldFromTag(obj, tagname, k, v)
 		if err != nil {
 			if errmsg != "" {

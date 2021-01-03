@@ -648,3 +648,77 @@ func TestBetterErrorReporting(t *testing.T) {
 	errfield = []string{"fieldint", "fieldbol", "fieldflo", "fieldsru"}
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
 }
+
+func TestNilValue(t *testing.T) {
+	type (
+		embedObj struct {
+			FieldInt   int     `json:"fieldInt"`
+			FieldStr   string  `json:"fieldStr"`
+			FieldFloat float64 `json:"fieldFloat"`
+		}
+		embedEmbed struct {
+			Embed1 embedObj  `json:"embed1"`
+			Embed2 *embedObj `json:"embed2"`
+		}
+		embedObjs struct {
+			Objs []*embedObj `json:"embeds"`
+		}
+	)
+
+	obj := embedEmbed{
+		Embed1: embedObj{1, "one", 1.1},
+	}
+	objmap := MapTags(&obj, "json")
+	embed2 := embedEmbed{}
+	if err := FillStructByTags(&embed2, objmap, "json"); err != nil {
+		t.Errorf("objmap fill fail: %v", err)
+	}
+	if embed2.Embed2 != nil {
+		t.Errorf("Invalid nil conversion, value should be nil")
+	}
+
+	objmap = MapFields(&obj)
+	embed2 = embedEmbed{}
+	if err := FillStruct(&embed2, objmap); err != nil {
+		t.Errorf("objmap fields fill fail: %v", err)
+	}
+	if embed2.Embed2 != nil {
+		t.Errorf("Invalid nil conversion, value should be nil")
+	}
+
+	objsem := embedObjs{
+		Objs: []*embedObj{
+			&embedObj{1, "one", 1.1},
+			&embedObj{2, "two", 2.2},
+			nil,
+			&embedObj{4, "four", 3.3},
+			&embedObj{5, "five", 4.4},
+		},
+	}
+	objsmap := MapTags(&objsem, "json")
+	fillobjsem := embedObjs{}
+	if err := FillStructByTags(&fillobjsem, objsmap, "json"); err != nil {
+		t.Errorf("Should not fail: %v", err)
+	}
+	for i, obj := range fillobjsem.Objs {
+		if obj == nil && i != 3 {
+			t.Errorf("index %d of object value %v should not nil", i, obj)
+		} else if i == 3 && obj != nil {
+			t.Errorf("index 3 of object value %v should be nil", obj)
+		}
+	}
+
+	objsmap = MapFields(&objsem)
+	fillobjsem = embedObjs{}
+	if err := FillStruct(&fillobjsem, objsmap); err != nil {
+		t.Errorf("Should not fail: %v", err)
+	}
+	for i, obj := range fillobjsem.Objs {
+		if obj == nil && i != 3 {
+			t.Errorf("index %d of object value %v should not nil", i, obj)
+		} else if i == 3 && obj != nil {
+			t.Errorf("index 3 of object value %v should be nil", obj)
+		}
+	}
+
+}
