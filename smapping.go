@@ -201,7 +201,7 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 		return false, nil
 	}
 	if !sfval.CanSet() {
-		return false, fmt.Errorf("Cannot set field %s in object", name)
+		return false, fmt.Errorf("cannot set field %s in object", name)
 	}
 	sftype := sfval.Type()
 	val := reflect.ValueOf(value)
@@ -214,7 +214,7 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 			}
 		}
 	} else if sftype != val.Type() {
-		return false, fmt.Errorf("Provided value (%v) type not match object field '%s' type",
+		return false, fmt.Errorf("provided value (%v) type not match object field '%s' type",
 			value, name)
 	}
 	sfval.Set(val)
@@ -268,23 +268,20 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				vval := vfield.Type().Elem()
 				ptrres := reflect.New(vval).Elem()
 				for k, v := range m {
-					success, err := setFieldFromTag(ptrres, tagname, k, v)
+					_, err := setFieldFromTag(ptrres, tagname, k, v)
 					if err != nil {
-						return false, fmt.Errorf("Ptr nested error: %s", err.Error())
-					}
-					if !success {
-						continue
+						return false, fmt.Errorf("ptr nested error: %s", err.Error())
 					}
 				}
 				val = ptrres.Addr()
 			} else {
 				if err := FillStructByTags(res, m, tagname); err != nil {
-					return false, fmt.Errorf("Nested error: %s", err.Error())
+					return false, fmt.Errorf("nested error: %s", err.Error())
 				}
 				val = res
 			}
 		} else if field.Type != val.Type() {
-			return false, fmt.Errorf("Provided value (%v) type not match field tag '%s' of tagname '%s' from object",
+			return false, fmt.Errorf("provided value (%v) type not match field tag '%s' of tagname '%s' from object",
 				value, tagname, tagvalue)
 		}
 		vfield.Set(val)
@@ -303,15 +300,12 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 		if v == nil {
 			continue
 		}
-		exists, err := setField(obj, k, v)
+		_, err := setField(obj, k, v)
 		if err != nil {
 			if errmsg != "" {
 				errmsg += ","
 			}
 			errmsg += err.Error()
-		}
-		if !exists {
-			continue
 		}
 	}
 	if errmsg != "" {
@@ -330,15 +324,12 @@ func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 		if v == nil {
 			continue
 		}
-		exists, err := setFieldFromTag(obj, tagname, k, v)
+		_, err := setFieldFromTag(obj, tagname, k, v)
 		if err != nil {
 			if errmsg != "" {
 				errmsg += ","
 			}
 			errmsg += err.Error()
-		}
-		if !exists {
-			continue
 		}
 	}
 	if errmsg != "" {
@@ -416,37 +407,37 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 
 func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 	tag, key string, obj, value interface{}) {
-	switch value.(type) {
+	switch v := value.(type) {
 	case *int8:
-		mapres[key] = *(value.(*int8))
+		mapres[key] = *v
 	case *int16:
-		mapres[key] = *(value.(*int16))
+		mapres[key] = *v
 	case *int32:
-		mapres[key] = *(value.(*int32))
+		mapres[key] = *v
 	case *int64:
-		mapres[key] = *(value.(*int64))
+		mapres[key] = *v
 	case *int:
-		mapres[key] = *(value.(*int))
+		mapres[key] = *v
 	case *uint8:
-		mapres[key] = *(value.(*uint8))
+		mapres[key] = *v
 	case *uint16:
-		mapres[key] = *(value.(*uint16))
+		mapres[key] = *v
 	case *uint32:
-		mapres[key] = *(value.(*uint32))
+		mapres[key] = *v
 	case *uint64:
-		mapres[key] = *(value.(*uint64))
+		mapres[key] = *v
 	case *uint:
-		mapres[key] = *(value.(*uint))
+		mapres[key] = *v
 	case *string:
-		mapres[key] = *(value.(*string))
+		mapres[key] = *v
 	case *bool:
-		mapres[key] = *(value.(*bool))
+		mapres[key] = *v
 	case *float32:
-		mapres[key] = *(value.(*float32))
+		mapres[key] = *v
 	case *float64:
-		mapres[key] = *(value.(*float64))
+		mapres[key] = *v
 	case *[]byte:
-		mapres[key] = *(value.(*[]byte))
+		mapres[key] = *v
 	case *driver.Valuer:
 	default:
 		typof := reflect.TypeOf(obj).Elem()

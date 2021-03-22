@@ -293,7 +293,7 @@ func fillStructTime(bytag bool, t *testing.T) {
 			return
 		}
 		mapp := Mapped{}
-		err = json.Unmarshal(jsbyte, &mapp)
+		_ = json.Unmarshal(jsbyte, &mapp)
 		err = FillStructByTags(&objTarget, mapp, "json")
 		if err != nil {
 			t.Error(err)
@@ -619,7 +619,7 @@ func TestBetterErrorReporting(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
-	msgfmt := "Provided value (%s %s %s %s type not match object field '%s type"
+	msgfmt := "provided value (%s %s %s %s type not match object field '%s type"
 	errval := []string{field1, field2, field4, field5}
 	errfield := []string{"Field1", "Field2", "Field4", "Field5"}
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
@@ -644,7 +644,7 @@ func TestBetterErrorReporting(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
-	msgfmt = "Provided value (%s %s %s %s type not match field tag 'errtag' of tagname '%s from object"
+	msgfmt = "provided value (%s %s %s %s type not match field tag 'errtag' of tagname '%s from object"
 	errfield = []string{"fieldint", "fieldbol", "fieldflo", "fieldsru"}
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
 }
@@ -688,11 +688,11 @@ func TestNilValue(t *testing.T) {
 
 	objsem := embedObjs{
 		Objs: []*embedObj{
-			&embedObj{1, "one", 1.1},
-			&embedObj{2, "two", 2.2},
+			{1, "one", 1.1},
+			{2, "two", 2.2},
 			nil,
-			&embedObj{4, "four", 3.3},
-			&embedObj{5, "five", 4.4},
+			{4, "four", 3.3},
+			{5, "five", 4.4},
 		},
 	}
 	objsmap := MapTags(&objsem, "json")
