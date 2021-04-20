@@ -450,13 +450,12 @@ func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 		} else if strufield, ok := tagFields[key]; ok {
 			typof = strufield.Type
 		} else {
-		lookupAssgn:
 			for i := 0; i < typof.NumField(); i++ {
 				strufield := typof.Field(i)
 				if tagval, ok := strufield.Tag.Lookup(tag); ok {
 					if tagHead(tagval) == key {
 						typof = strufield.Type
-						break lookupAssgn
+						break
 					}
 				}
 			}
