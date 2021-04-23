@@ -289,6 +289,10 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			for i := 0; i < val.Len(); i++ {
 				vval := val.Index(i)
 				rval := reflect.New(res.Type().Elem()).Elem()
+				if vval.Kind() < reflect.Array {
+					res = reflect.Append(res, vval)
+					continue
+				}
 				newrval := rval
 				if rval.Kind() == reflect.Ptr {
 					acttype := rval.Type().Elem()
