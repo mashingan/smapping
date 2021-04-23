@@ -221,6 +221,11 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 	return true, nil
 }
 
+func isSlicedObj(val, res reflect.Value) bool {
+	return val.Type().Kind() == reflect.Slice &&
+		res.Kind() == reflect.Slice
+}
+
 func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
 	sval := extractValue(obj)
 	stype := sval.Type()
@@ -280,6 +285,33 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				}
 				val = res
 			}
+		} else if isSlicedObj(val, res) {
+			for i := 0; i < val.Len(); i++ {
+				vval := val.Index(i)
+				rval := reflect.New(res.Type().Elem()).Elem()
+				newrval := rval
+				if rval.Kind() == reflect.Ptr {
+					acttype := rval.Type().Elem()
+					// newrval = reflect.New(acttype).Elem()
+					newrval = reflect.New(acttype).Elem()
+				}
+				m, ok := vval.Interface().(Mapped)
+				if !ok {
+					// continue
+					m = MapTags(vval.Interface(), tagname)
+				}
+				err := FillStructByTags(newrval, m, tagname)
+				// _, err := setFieldFromTag(newrval, tagname, tag, vval.Interface())
+				if err != nil {
+					return false, fmt.Errorf("cannot set an element slice")
+				}
+				if rval.Kind() == reflect.Ptr {
+					res = reflect.Append(res, newrval.Addr())
+				} else {
+					res = reflect.Append(res, newrval)
+				}
+			}
+			val = res
 		} else if field.Type != val.Type() {
 			return false, fmt.Errorf("provided value (%v) type not match field tag '%s' of tagname '%s' from object",
 				value, tagname, tagvalue)
