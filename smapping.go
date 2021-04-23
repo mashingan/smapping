@@ -292,6 +292,9 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				if vval.Kind() < reflect.Array {
 					res = reflect.Append(res, vval)
 					continue
+				} else if vval.IsNil() {
+					res = reflect.Append(res, reflect.Zero(rval.Type()))
+					continue
 				}
 				newrval := rval
 				if rval.Kind() == reflect.Ptr {
@@ -301,11 +304,9 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				}
 				m, ok := vval.Interface().(Mapped)
 				if !ok {
-					// continue
 					m = MapTags(vval.Interface(), tagname)
 				}
 				err := FillStructByTags(newrval, m, tagname)
-				// _, err := setFieldFromTag(newrval, tagname, tag, vval.Interface())
 				if err != nil {
 					return false, fmt.Errorf("cannot set an element slice")
 				}
