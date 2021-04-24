@@ -77,7 +77,20 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 		case reflect.Struct:
 			resval = MapTags(fieldval, tag)
 		case reflect.Ptr:
-			resval = MapTags(fieldval.Elem(), tag)
+			indirect := reflect.Indirect(fieldval)
+			if indirect.Kind() < reflect.Array {
+				resval = indirect.Interface()
+			} else {
+				resval = MapTags(fieldval.Elem(), tag)
+			}
+		case reflect.Slice:
+			placeholder := make([]interface{}, fieldval.Len())
+			for i := 0; i < fieldval.Len(); i++ {
+				fieldvalidx := fieldval.Index(i)
+				theval := getValTag(fieldvalidx, tag)
+				placeholder[i] = theval
+			}
+			resval = placeholder
 		default:
 			resval = fieldval.Interface()
 		}
@@ -160,10 +173,7 @@ func MapTagsFlatten(x interface{}, tag string) Mapped {
 			result[key] = fieldval.Interface()
 			continue
 		}
-		fkind := fieldval.Kind()
-		if fkind == reflect.Ptr {
-			fieldval = fieldval.Elem()
-		}
+		fieldval = reflect.Indirect(fieldval)
 		if fieldval.Type().Kind() != reflect.Struct {
 			continue
 		}
