@@ -262,6 +262,55 @@ func fillTime(vfield reflect.Value, val *reflect.Value) error {
 	return nil
 }
 
+func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
+	for i := 0; i < val.Len(); i++ {
+		vval := val.Index(i)
+		rval := reflect.New(res.Type().Elem()).Elem()
+		if vval.Kind() < reflect.Array {
+			res = reflect.Append(res, vval)
+			continue
+		} else if vval.IsNil() {
+			res = reflect.Append(res, reflect.Zero(rval.Type()))
+			continue
+		}
+		newrval := rval
+		if rval.Kind() == reflect.Ptr {
+			acttype := rval.Type().Elem()
+			newrval = reflect.New(acttype).Elem()
+			if newrval.Kind() < reflect.Array {
+				ival := vval.Interface()
+				if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
+					nval := reflect.ValueOf(ival).Int()
+					newrval.SetInt(nval)
+				} else if newrval.Kind() > reflect.Uintptr &&
+					newrval.Kind() < reflect.Complex64 {
+					fval := reflect.ValueOf(ival).Float()
+					newrval.SetFloat(fval)
+				} else {
+					newrval.Set(reflect.ValueOf(ival))
+				}
+				res = reflect.Append(res, newrval.Addr())
+				continue
+			}
+		}
+		m, ok := vval.Interface().(Mapped)
+		if !ok && newrval.Kind() >= reflect.Array {
+			m = MapTags(vval.Interface(), tagname)
+		}
+		err := FillStructByTags(newrval, m, tagname)
+		if err != nil {
+			return fmt.Errorf("cannot set an element slice")
+		}
+		if rval.Kind() == reflect.Ptr {
+			res = reflect.Append(res, newrval.Addr())
+		} else {
+			res = reflect.Append(res, newrval)
+		}
+	}
+	*val = res
+	return nil
+}
+
 func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
 	sval := extractValue(obj)
 	stype := sval.Type()
@@ -296,51 +345,9 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				return false, err
 			}
 		} else if isSlicedObj(val, res) {
-			for i := 0; i < val.Len(); i++ {
-				vval := val.Index(i)
-				rval := reflect.New(res.Type().Elem()).Elem()
-				if vval.Kind() < reflect.Array {
-					res = reflect.Append(res, vval)
-					continue
-				} else if vval.IsNil() {
-					res = reflect.Append(res, reflect.Zero(rval.Type()))
-					continue
-				}
-				newrval := rval
-				if rval.Kind() == reflect.Ptr {
-					acttype := rval.Type().Elem()
-					newrval = reflect.New(acttype).Elem()
-					if newrval.Kind() < reflect.Array {
-						ival := vval.Interface()
-						if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
-							nval := reflect.ValueOf(ival).Int()
-							newrval.SetInt(nval)
-						} else if newrval.Kind() > reflect.Uintptr &&
-							newrval.Kind() < reflect.Complex64 {
-							fval := reflect.ValueOf(ival).Float()
-							newrval.SetFloat(fval)
-						} else {
-							newrval.Set(reflect.ValueOf(ival))
-						}
-						res = reflect.Append(res, newrval.Addr())
-						continue
-					}
-				}
-				m, ok := vval.Interface().(Mapped)
-				if !ok && newrval.Kind() >= reflect.Array {
-					m = MapTags(vval.Interface(), tagname)
-				}
-				err := FillStructByTags(newrval, m, tagname)
-				if err != nil {
-					return false, fmt.Errorf("cannot set an element slice")
-				}
-				if rval.Kind() == reflect.Ptr {
-					res = reflect.Append(res, newrval.Addr())
-				} else {
-					res = reflect.Append(res, newrval)
-				}
+			if err := fillSlice(res, &val, tagname); err != nil {
+				return false, err
 			}
-			val = res
 		} else if field.Type != val.Type() {
 			return false, fmt.Errorf("provided value (%v) type not match field tag '%s' of tagname '%s' from object",
 				value, tagname, tagvalue)
