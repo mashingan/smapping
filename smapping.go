@@ -299,11 +299,16 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				newrval := rval
 				if rval.Kind() == reflect.Ptr {
 					acttype := rval.Type().Elem()
-					// newrval = reflect.New(acttype).Elem()
 					newrval = reflect.New(acttype).Elem()
+					if newrval.Kind() < reflect.Array {
+						ival := vval.Interface()
+						newrval.Set(reflect.ValueOf(ival))
+						res = reflect.Append(res, newrval.Addr())
+						continue
+					}
 				}
 				m, ok := vval.Interface().(Mapped)
-				if !ok {
+				if !ok && newrval.Kind() >= reflect.Array {
 					m = MapTags(vval.Interface(), tagname)
 				}
 				err := FillStructByTags(newrval, m, tagname)
