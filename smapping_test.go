@@ -744,7 +744,8 @@ func arrobj(t *testing.T) {
 	maptag := MapTags(&objsem, "json")
 
 	//TODO: will be fixed later for slicing tag
-	embedstf, ok := maptag["embeds"].([]*embedObj)
+	// embedstf, ok := maptag["embeds"].([]*embedObj)
+	embedstf, ok := maptag["embeds"].([]interface{})
 	if !ok {
 		t.Fatalf("Wrong type, %#v", maptag["embeds"])
 	}
@@ -756,9 +757,23 @@ func arrobj(t *testing.T) {
 			t.Errorf("%v expected nil, got empty value\n", emtf)
 			continue
 		}
-		if !eq(emtf, objsem.Objs[i]) && i != 2 {
+		if i == 2 {
+			continue
+
+		}
+		emtfmap, ok := emtf.(Mapped)
+		// emtf2, ok := emtf.(*embedObj)
+		if !ok {
+			t.Errorf("Cannot cast to Mapped %#v\n", emtf)
+			continue
+		}
+		emtf2 := &embedObj{}
+		if err := FillStructByTags(emtf2, emtfmap, "json"); err != nil {
+			t.Error(err)
+		}
+		if !eq(emtf2, objsem.Objs[i]) && i != 2 {
 			t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
-				emtf, i, objsem.Objs[i])
+				emtf2, i, objsem.Objs[i])
 		}
 	}
 
@@ -840,9 +855,9 @@ func arrvalues(t *testing.T) {
 		ArrInt: []int{1, 2, 3, 4, 5},
 	}
 	minitobj := MapTags(&initobj, "json")
-	arintminit, ok := minitobj["array_int"].(ArrInt)
+	arintminit, ok := minitobj["array_int"].([]interface{})
 	if !ok {
-		t.Error("failed to cast")
+		t.Errorf("failed to cast %#v\n", minitobj["array_int"])
 		return
 	}
 	t.Logf("arrintminit %#v\n", arintminit)
@@ -869,33 +884,30 @@ func arrvalues(t *testing.T) {
 		APint: []*int{a, b, nil, c, d, e},
 	}
 	mapinit := MapTags(&pinitobj, "json")
-	rawpinit, ok := mapinit["ptarr_int"].(APint)
+	rawpinit, ok := mapinit["ptarr_int"].([]interface{})
 	if !ok {
-		t.Error("failed conv")
+		t.Errorf("failed conv %#v\n", mapinit["ptrarr_int"])
 	}
 
-	// expectedInts := []*int{a, b, nil, c, d, e}
-	expectedInts := pinitobj.APint
-	testelem := func(ap APint, expected []*int) {
-		vallen := len(ap)
-		expectlen := len(expected)
-		if vallen != expectlen {
-			t.Fatalf("Got %d length, expected %d length", vallen, expectlen)
+	t.Logf("rawpinit %#v\n", rawpinit)
+	for i, rp := range rawpinit {
+		if i == 2 && rp != nil {
+			t.Errorf("rp should be nil, %#v\n", rp)
 		}
-		for i, rp := range ap {
-			if i == 2 && rp != nil {
-				t.Errorf("rp should be nil, got %d %#v\n", *rp, rp)
-			} else {
-				ptrop := expected[i]
-				if ptrop != nil && i != 2 && *ptrop != *rp {
-					t.Errorf("Wrong value at index %d, got %#v expected %#v",
-						i, *rp, *ptrop)
-				}
-			}
+		if i == 2 {
+			continue
 		}
+		p, ok := rp.(int)
+		if !ok {
+			t.Errorf("failed cast, got %#v %T\n", rp, rp)
 
+		}
+		ptrop := pinitobj.APint[i]
+		if ptrop != nil && i != 2 && *ptrop != p {
+			t.Errorf("Wrong value at index %d, got %#v expected %#v",
+				i, p, *ptrop)
+		}
 	}
-	testelem(rawpinit, expectedInts)
 
 	rawpinit2 := Mapped{
 		"ptarr_int": []interface{}{55, 44, nil, 33, 22, 11},
@@ -904,7 +916,26 @@ func arrvalues(t *testing.T) {
 	if err := FillStructByTags(&pinit2, rawpinit2, "json"); err != nil {
 		t.Error(err)
 	}
-	testelem(pinit2.APint, []*int{e, d, nil, c, b, a})
+	expt2 := []*int{e, d, nil, c, b, a}
+	t.Logf("pinit2 %#v\n", pinit2)
+	for i, rp := range pinit2.APint {
+		if i == 2 && rp != nil {
+			t.Errorf("rp should be nil, %#v\n", rp)
+		}
+		if i == 2 {
+			continue
+		}
+
+		if !ok {
+			t.Errorf("failed cast, got %#v %T\n", rp, rp)
+
+		}
+		ptrop := expt2[i]
+		if ptrop != nil && i != 2 && *ptrop != *rp {
+			t.Errorf("Wrong value at index %d, got %#v expected %#v",
+				i, *rp, *ptrop)
+		}
+	}
 
 	rawfloat := Mapped{
 		"ptarr_float": []interface{}{1.1, 2.2, nil, 3.3, 4.4},
