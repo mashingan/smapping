@@ -226,6 +226,31 @@ func isSlicedObj(val, res reflect.Value) bool {
 		res.Kind() == reflect.Slice
 }
 
+func fillMapIter(vfield, res reflect.Value, val *reflect.Value, tagname string) error {
+	iter := val.MapRange()
+	m := Mapped{}
+	for iter.Next() {
+		m[iter.Key().String()] = iter.Value().Interface()
+	}
+	if vfield.Kind() == reflect.Ptr {
+		vval := vfield.Type().Elem()
+		ptrres := reflect.New(vval).Elem()
+		for k, v := range m {
+			_, err := setFieldFromTag(ptrres, tagname, k, v)
+			if err != nil {
+				return fmt.Errorf("ptr nested error: %s", err.Error())
+			}
+		}
+		*val = ptrres.Addr()
+	} else {
+		if err := FillStructByTags(res, m, tagname); err != nil {
+			return fmt.Errorf("nested error: %s", err.Error())
+		}
+		*val = res
+	}
+	return nil
+}
+
 func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
 	sval := extractValue(obj)
 	stype := sval.Type()
@@ -251,10 +276,6 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			continue
 		}
 		val := reflect.ValueOf(value)
-		gotptr := false
-		if vfield.Kind() == reflect.Ptr {
-			gotptr = true
-		}
 		res := reflect.New(vfield.Type()).Elem()
 		if isTime(vfield.Type()) {
 			if val.Type().Name() == "string" {
@@ -264,26 +285,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 				}
 			}
 		} else if res.IsValid() && val.Type().Name() == "Mapped" {
-			iter := val.MapRange()
-			m := Mapped{}
-			for iter.Next() {
-				m[iter.Key().String()] = iter.Value().Interface()
-			}
-			if gotptr {
-				vval := vfield.Type().Elem()
-				ptrres := reflect.New(vval).Elem()
-				for k, v := range m {
-					_, err := setFieldFromTag(ptrres, tagname, k, v)
-					if err != nil {
-						return false, fmt.Errorf("ptr nested error: %s", err.Error())
-					}
-				}
-				val = ptrres.Addr()
-			} else {
-				if err := FillStructByTags(res, m, tagname); err != nil {
-					return false, fmt.Errorf("nested error: %s", err.Error())
-				}
-				val = res
+			if err := fillMapIter(vfield, res, &val, tagname); err != nil {
+				return false, err
 			}
 		} else if isSlicedObj(val, res) {
 			for i := 0; i < val.Len(); i++ {
