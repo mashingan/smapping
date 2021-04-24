@@ -251,6 +251,17 @@ func fillMapIter(vfield, res reflect.Value, val *reflect.Value, tagname string) 
 	return nil
 }
 
+func fillTime(vfield reflect.Value, val *reflect.Value) error {
+	if (*val).Type().Name() == "string" {
+		newval, err := handleTime(time.RFC3339, val.String(), vfield.Type())
+		if err != nil {
+			return fmt.Errorf("smapping Time conversion: %s", err.Error())
+		}
+		*val = newval
+	}
+	return nil
+}
+
 func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
 	sval := extractValue(obj)
 	stype := sval.Type()
@@ -263,7 +274,6 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 		var (
 			tag string
 			ok  bool
-			err error
 		)
 		if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
@@ -278,11 +288,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 		val := reflect.ValueOf(value)
 		res := reflect.New(vfield.Type()).Elem()
 		if isTime(vfield.Type()) {
-			if val.Type().Name() == "string" {
-				val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
-				if err != nil {
-					return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
-				}
+			if err := fillTime(vfield, &val); err != nil {
+				return false, err
 			}
 		} else if res.IsValid() && val.Type().Name() == "Mapped" {
 			if err := fillMapIter(vfield, res, &val, tagname); err != nil {
