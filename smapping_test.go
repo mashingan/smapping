@@ -293,7 +293,7 @@ func fillStructTime(bytag bool, t *testing.T) {
 			return
 		}
 		mapp := Mapped{}
-		err = json.Unmarshal(jsbyte, &mapp)
+		_ = json.Unmarshal(jsbyte, &mapp)
 		err = FillStructByTags(&objTarget, mapp, "json")
 		if err != nil {
 			t.Error(err)
@@ -619,7 +619,7 @@ func TestBetterErrorReporting(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
-	msgfmt := "Provided value (%s %s %s %s type not match object field '%s type"
+	msgfmt := "provided value (%s %s %s %s type not match object field '%s type"
 	errval := []string{field1, field2, field4, field5}
 	errfield := []string{"Field1", "Field2", "Field4", "Field5"}
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
@@ -644,27 +644,27 @@ func TestBetterErrorReporting(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
-	msgfmt = "Provided value (%s %s %s %s type not match field tag 'errtag' of tagname '%s from object"
+	msgfmt = "provided value (%s %s %s %s type not match field tag 'errtag' of tagname '%s from object"
 	errfield = []string{"fieldint", "fieldbol", "fieldflo", "fieldsru"}
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
 }
 
-func TestNilValue(t *testing.T) {
-	type (
-		embedObj struct {
-			FieldInt   int     `json:"fieldInt"`
-			FieldStr   string  `json:"fieldStr"`
-			FieldFloat float64 `json:"fieldFloat"`
-		}
-		embedEmbed struct {
-			Embed1 embedObj  `json:"embed1"`
-			Embed2 *embedObj `json:"embed2"`
-		}
-		embedObjs struct {
-			Objs []*embedObj `json:"embeds"`
-		}
-	)
+type (
+	embedObj struct {
+		FieldInt   int     `json:"fieldInt"`
+		FieldStr   string  `json:"fieldStr"`
+		FieldFloat float64 `json:"fieldFloat"`
+	}
+	embedEmbed struct {
+		Embed1 embedObj  `json:"embed1"`
+		Embed2 *embedObj `json:"embed2"`
+	}
+	embedObjs struct {
+		Objs []*embedObj `json:"embeds"`
+	}
+)
 
+func TestNilValue(t *testing.T) {
 	obj := embedEmbed{
 		Embed1: embedObj{1, "one", 1.1},
 	}
@@ -688,11 +688,11 @@ func TestNilValue(t *testing.T) {
 
 	objsem := embedObjs{
 		Objs: []*embedObj{
-			&embedObj{1, "one", 1.1},
-			&embedObj{2, "two", 2.2},
+			{1, "one", 1.1},
+			{2, "two", 2.2},
 			nil,
-			&embedObj{4, "four", 3.3},
-			&embedObj{5, "five", 4.4},
+			{4, "four", 3.3},
+			{5, "five", 4.4},
 		},
 	}
 	objsmap := MapTags(&objsem, "json")
@@ -721,4 +721,223 @@ func TestNilValue(t *testing.T) {
 		}
 	}
 
+}
+
+func eq(a, b *embedObj) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.FieldFloat == b.FieldFloat && a.FieldInt == b.FieldInt &&
+		a.FieldStr == b.FieldStr
+}
+
+func arrobj(t *testing.T) {
+	objsem := embedObjs{
+		Objs: []*embedObj{
+			{1, "one", 1.1},
+			{2, "two", 2.2},
+			nil,
+			{4, "four", 3.3},
+			{5, "five", 4.4},
+		},
+	}
+	maptag := MapTags(&objsem, "json")
+
+	//TODO: will be fixed later for slicing tag
+	embedstf, ok := maptag["embeds"].([]*embedObj)
+	if !ok {
+		t.Fatalf("Wrong type, %#v", maptag["embeds"])
+	}
+	if len(embedstf) != len(objsem.Objs) {
+		t.Fatalf("len(embedstf) expected %d got %d\n", len(objsem.Objs), len(embedstf))
+	}
+	for i, emtf := range embedstf {
+		if i == 2 && emtf != nil {
+			t.Errorf("%v expected nil, got empty value\n", emtf)
+			continue
+		}
+		if !eq(emtf, objsem.Objs[i]) && i != 2 {
+			t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
+				emtf, i, objsem.Objs[i])
+		}
+	}
+
+	// raw of mapped case
+	rawtfobj := Mapped{
+		"embeds": []Mapped{
+			{"fieldInt": 1, "fieldStr": "one", "fieldFloat": 1.1},
+			{"fieldInt": 2, "fieldStr": "two", "fieldFloat": 2.2},
+			nil,
+			{"fieldInt": 4, "fieldStr": "four", "fieldFloat": 4.4},
+			{"fieldInt": 5, "fieldStr": "five", "fieldFloat": 5.5},
+		},
+	}
+	expectedVals := []*embedObj{
+		{1, "one", 1.1},
+		{2, "two", 2.2},
+		nil,
+		{4, "four", 4.4},
+		{5, "five", 5.5},
+	}
+
+	testit := func(raw Mapped) {
+		newemb := embedObjs{}
+		err := FillStructByTags(&newemb, rawtfobj, "json")
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("%#v\n", newemb)
+		newemblen := len(newemb.Objs)
+		exptlen := len(expectedVals)
+		if newemblen != exptlen {
+			t.Fatalf("New len got %d, expected %d", newemblen, exptlen)
+		}
+		for i, ob := range newemb.Objs {
+			if i == 2 && ob != nil {
+				t.Errorf("%v expected nil, got empty value\n", ob)
+				continue
+			}
+			if i != 2 && !eq(ob, expectedVals[i]) {
+				t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
+					ob, i, expectedVals[i])
+
+			}
+		}
+
+	}
+	testit(rawtfobj)
+
+	// case of actual object
+	rawtfobj = Mapped{
+		"embeds": []*embedObj{
+			{1, "one", 1.1},
+			{2, "two", 2.2},
+			nil,
+			{4, "four", 4.4},
+			{5, "five", 5.5},
+		},
+	}
+	testit(rawtfobj)
+}
+
+func arrvalues(t *testing.T) {
+	type (
+		ArrInt   []int
+		MyArrInt struct {
+			ArrInt `json:"array_int"`
+		}
+		APint []*int
+		MPint struct {
+			APint `json:"ptarr_int"`
+		}
+		APfloat []*float32
+		MPfloat struct {
+			APfloat `json:"ptarr_float"`
+		}
+	)
+
+	initobj := MyArrInt{
+		ArrInt: []int{1, 2, 3, 4, 5},
+	}
+	minitobj := MapTags(&initobj, "json")
+	arintminit, ok := minitobj["array_int"].(ArrInt)
+	if !ok {
+		t.Error("failed to cast")
+		return
+	}
+	t.Logf("arrintminit %#v\n", arintminit)
+	rawminit := Mapped{
+		"array_int": []int{5, 4, 3, 2, 1},
+	}
+	var rinit MyArrInt
+	if err := FillStructByTags(&rinit, rawminit, "json"); err != nil {
+		t.Error(err)
+	}
+	t.Logf("rinit %#v\n", rinit)
+
+	a := new(int)
+	b := new(int)
+	c := new(int)
+	d := new(int)
+	e := new(int)
+	*a = 11
+	*b = 22
+	*c = 33
+	*d = 44
+	*e = 55
+	pinitobj := MPint{
+		APint: []*int{a, b, nil, c, d, e},
+	}
+	mapinit := MapTags(&pinitobj, "json")
+	rawpinit, ok := mapinit["ptarr_int"].(APint)
+	if !ok {
+		t.Error("failed conv")
+	}
+
+	// expectedInts := []*int{a, b, nil, c, d, e}
+	expectedInts := pinitobj.APint
+	testelem := func(ap APint, expected []*int) {
+		vallen := len(ap)
+		expectlen := len(expected)
+		if vallen != expectlen {
+			t.Fatalf("Got %d length, expected %d length", vallen, expectlen)
+		}
+		for i, rp := range ap {
+			if i == 2 && rp != nil {
+				t.Errorf("rp should be nil, got %d %#v\n", *rp, rp)
+			} else {
+				ptrop := expected[i]
+				if ptrop != nil && i != 2 && *ptrop != *rp {
+					t.Errorf("Wrong value at index %d, got %#v expected %#v",
+						i, *rp, *ptrop)
+				}
+			}
+		}
+
+	}
+	testelem(rawpinit, expectedInts)
+
+	rawpinit2 := Mapped{
+		"ptarr_int": []interface{}{55, 44, nil, 33, 22, 11},
+	}
+	var pinit2 MPint
+	if err := FillStructByTags(&pinit2, rawpinit2, "json"); err != nil {
+		t.Error(err)
+	}
+	testelem(pinit2.APint, []*int{e, d, nil, c, b, a})
+
+	rawfloat := Mapped{
+		"ptarr_float": []interface{}{1.1, 2.2, nil, 3.3, 4.4},
+	}
+	var mfloat MPfloat
+	if err := FillStructByTags(&mfloat, rawfloat, "json"); err != nil {
+		t.Error(err)
+	}
+	testelemfloat := func(ap APfloat, expected []interface{}) {
+		vallen := len(ap)
+		expectlen := len(expected)
+		if vallen != expectlen {
+			t.Fatalf("Got %d length, expected %d length", vallen, expectlen)
+		}
+		for i, rp := range ap {
+			if i == 2 && rp != nil {
+				t.Errorf("rp should be nil, got %v %#v\n", *rp, rp)
+			} else {
+				if expected[i] == nil {
+					continue
+				}
+				ptrop := expected[i].(float64)
+				if float32(ptrop) != *rp {
+					t.Errorf("Wrong value at index %d, got %#v expected %#v",
+						i, *rp, ptrop)
+				}
+			}
+		}
+	}
+	testelemfloat(mfloat.APfloat, rawfloat["ptarr_float"].([]interface{}))
+}
+
+func TestTagsSlice(t *testing.T) {
+	arrobj(t)
+	arrvalues(t)
 }

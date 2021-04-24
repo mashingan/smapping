@@ -201,7 +201,7 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 		return false, nil
 	}
 	if !sfval.CanSet() {
-		return false, fmt.Errorf("Cannot set field %s in object", name)
+		return false, fmt.Errorf("cannot set field %s in object", name)
 	}
 	sftype := sfval.Type()
 	val := reflect.ValueOf(value)
@@ -214,11 +214,101 @@ func setField(obj interface{}, name string, value interface{}) (bool, error) {
 			}
 		}
 	} else if sftype != val.Type() {
-		return false, fmt.Errorf("Provided value (%v) type not match object field '%s' type",
+		return false, fmt.Errorf("provided value (%v) type not match object field '%s' type",
 			value, name)
 	}
 	sfval.Set(val)
 	return true, nil
+}
+
+func isSlicedObj(val, res reflect.Value) bool {
+	return val.Type().Kind() == reflect.Slice &&
+		res.Kind() == reflect.Slice
+}
+
+func fillMapIter(vfield, res reflect.Value, val *reflect.Value, tagname string) error {
+	iter := val.MapRange()
+	m := Mapped{}
+	for iter.Next() {
+		m[iter.Key().String()] = iter.Value().Interface()
+	}
+	if vfield.Kind() == reflect.Ptr {
+		vval := vfield.Type().Elem()
+		ptrres := reflect.New(vval).Elem()
+		for k, v := range m {
+			_, err := setFieldFromTag(ptrres, tagname, k, v)
+			if err != nil {
+				return fmt.Errorf("ptr nested error: %s", err.Error())
+			}
+		}
+		*val = ptrres.Addr()
+	} else {
+		if err := FillStructByTags(res, m, tagname); err != nil {
+			return fmt.Errorf("nested error: %s", err.Error())
+		}
+		*val = res
+	}
+	return nil
+}
+
+func fillTime(vfield reflect.Value, val *reflect.Value) error {
+	if (*val).Type().Name() == "string" {
+		newval, err := handleTime(time.RFC3339, val.String(), vfield.Type())
+		if err != nil {
+			return fmt.Errorf("smapping Time conversion: %s", err.Error())
+		}
+		*val = newval
+	}
+	return nil
+}
+
+func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
+	for i := 0; i < val.Len(); i++ {
+		vval := val.Index(i)
+		rval := reflect.New(res.Type().Elem()).Elem()
+		if vval.Kind() < reflect.Array {
+			res = reflect.Append(res, vval)
+			continue
+		} else if vval.IsNil() {
+			res = reflect.Append(res, reflect.Zero(rval.Type()))
+			continue
+		}
+		newrval := rval
+		if rval.Kind() == reflect.Ptr {
+			acttype := rval.Type().Elem()
+			newrval = reflect.New(acttype).Elem()
+			if newrval.Kind() < reflect.Array {
+				ival := vval.Interface()
+				if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
+					nval := reflect.ValueOf(ival).Int()
+					newrval.SetInt(nval)
+				} else if newrval.Kind() > reflect.Uintptr &&
+					newrval.Kind() < reflect.Complex64 {
+					fval := reflect.ValueOf(ival).Float()
+					newrval.SetFloat(fval)
+				} else {
+					newrval.Set(reflect.ValueOf(ival))
+				}
+				res = reflect.Append(res, newrval.Addr())
+				continue
+			}
+		}
+		m, ok := vval.Interface().(Mapped)
+		if !ok && newrval.Kind() >= reflect.Array {
+			m = MapTags(vval.Interface(), tagname)
+		}
+		err := FillStructByTags(newrval, m, tagname)
+		if err != nil {
+			return fmt.Errorf("cannot set an element slice")
+		}
+		if rval.Kind() == reflect.Ptr {
+			res = reflect.Append(res, newrval.Addr())
+		} else {
+			res = reflect.Append(res, newrval)
+		}
+	}
+	*val = res
+	return nil
 }
 
 func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{}) (bool, error) {
@@ -233,7 +323,6 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 		var (
 			tag string
 			ok  bool
-			err error
 		)
 		if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
@@ -246,45 +335,21 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			continue
 		}
 		val := reflect.ValueOf(value)
-		gotptr := false
-		if vfield.Kind() == reflect.Ptr {
-			gotptr = true
-		}
 		res := reflect.New(vfield.Type()).Elem()
 		if isTime(vfield.Type()) {
-			if val.Type().Name() == "string" {
-				val, err = handleTime(time.RFC3339, val.String(), vfield.Type())
-				if err != nil {
-					return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
-				}
+			if err := fillTime(vfield, &val); err != nil {
+				return false, err
 			}
 		} else if res.IsValid() && val.Type().Name() == "Mapped" {
-			iter := val.MapRange()
-			m := Mapped{}
-			for iter.Next() {
-				m[iter.Key().String()] = iter.Value().Interface()
+			if err := fillMapIter(vfield, res, &val, tagname); err != nil {
+				return false, err
 			}
-			if gotptr {
-				vval := vfield.Type().Elem()
-				ptrres := reflect.New(vval).Elem()
-				for k, v := range m {
-					success, err := setFieldFromTag(ptrres, tagname, k, v)
-					if err != nil {
-						return false, fmt.Errorf("Ptr nested error: %s", err.Error())
-					}
-					if !success {
-						continue
-					}
-				}
-				val = ptrres.Addr()
-			} else {
-				if err := FillStructByTags(res, m, tagname); err != nil {
-					return false, fmt.Errorf("Nested error: %s", err.Error())
-				}
-				val = res
+		} else if isSlicedObj(val, res) {
+			if err := fillSlice(res, &val, tagname); err != nil {
+				return false, err
 			}
 		} else if field.Type != val.Type() {
-			return false, fmt.Errorf("Provided value (%v) type not match field tag '%s' of tagname '%s' from object",
+			return false, fmt.Errorf("provided value (%v) type not match field tag '%s' of tagname '%s' from object",
 				value, tagname, tagvalue)
 		}
 		vfield.Set(val)
@@ -303,15 +368,12 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 		if v == nil {
 			continue
 		}
-		exists, err := setField(obj, k, v)
+		_, err := setField(obj, k, v)
 		if err != nil {
 			if errmsg != "" {
 				errmsg += ","
 			}
 			errmsg += err.Error()
-		}
-		if !exists {
-			continue
 		}
 	}
 	if errmsg != "" {
@@ -330,15 +392,12 @@ func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 		if v == nil {
 			continue
 		}
-		exists, err := setFieldFromTag(obj, tagname, k, v)
+		_, err := setFieldFromTag(obj, tagname, k, v)
 		if err != nil {
 			if errmsg != "" {
 				errmsg += ","
 			}
 			errmsg += err.Error()
-		}
-		if !exists {
-			continue
 		}
 	}
 	if errmsg != "" {
@@ -416,37 +475,37 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 
 func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 	tag, key string, obj, value interface{}) {
-	switch value.(type) {
+	switch v := value.(type) {
 	case *int8:
-		mapres[key] = *(value.(*int8))
+		mapres[key] = *v
 	case *int16:
-		mapres[key] = *(value.(*int16))
+		mapres[key] = *v
 	case *int32:
-		mapres[key] = *(value.(*int32))
+		mapres[key] = *v
 	case *int64:
-		mapres[key] = *(value.(*int64))
+		mapres[key] = *v
 	case *int:
-		mapres[key] = *(value.(*int))
+		mapres[key] = *v
 	case *uint8:
-		mapres[key] = *(value.(*uint8))
+		mapres[key] = *v
 	case *uint16:
-		mapres[key] = *(value.(*uint16))
+		mapres[key] = *v
 	case *uint32:
-		mapres[key] = *(value.(*uint32))
+		mapres[key] = *v
 	case *uint64:
-		mapres[key] = *(value.(*uint64))
+		mapres[key] = *v
 	case *uint:
-		mapres[key] = *(value.(*uint))
+		mapres[key] = *v
 	case *string:
-		mapres[key] = *(value.(*string))
+		mapres[key] = *v
 	case *bool:
-		mapres[key] = *(value.(*bool))
+		mapres[key] = *v
 	case *float32:
-		mapres[key] = *(value.(*float32))
+		mapres[key] = *v
 	case *float64:
-		mapres[key] = *(value.(*float64))
+		mapres[key] = *v
 	case *[]byte:
-		mapres[key] = *(value.(*[]byte))
+		mapres[key] = *v
 	case *driver.Valuer:
 	default:
 		typof := reflect.TypeOf(obj).Elem()
@@ -459,13 +518,12 @@ func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 		} else if strufield, ok := tagFields[key]; ok {
 			typof = strufield.Type
 		} else {
-		lookupAssgn:
 			for i := 0; i < typof.NumField(); i++ {
 				strufield := typof.Field(i)
 				if tagval, ok := strufield.Tag.Lookup(tag); ok {
 					if tagHead(tagval) == key {
 						typof = strufield.Type
-						break lookupAssgn
+						break
 					}
 				}
 			}
