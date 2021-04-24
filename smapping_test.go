@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -649,22 +650,22 @@ func TestBetterErrorReporting(t *testing.T) {
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
 }
 
-func TestNilValue(t *testing.T) {
-	type (
-		embedObj struct {
-			FieldInt   int     `json:"fieldInt"`
-			FieldStr   string  `json:"fieldStr"`
-			FieldFloat float64 `json:"fieldFloat"`
-		}
-		embedEmbed struct {
-			Embed1 embedObj  `json:"embed1"`
-			Embed2 *embedObj `json:"embed2"`
-		}
-		embedObjs struct {
-			Objs []*embedObj `json:"embeds"`
-		}
-	)
+type (
+	embedObj struct {
+		FieldInt   int     `json:"fieldInt"`
+		FieldStr   string  `json:"fieldStr"`
+		FieldFloat float64 `json:"fieldFloat"`
+	}
+	embedEmbed struct {
+		Embed1 embedObj  `json:"embed1"`
+		Embed2 *embedObj `json:"embed2"`
+	}
+	embedObjs struct {
+		Objs []*embedObj `json:"embeds"`
+	}
+)
 
+func TestNilValue(t *testing.T) {
 	obj := embedEmbed{
 		Embed1: embedObj{1, "one", 1.1},
 	}
@@ -721,4 +722,167 @@ func TestNilValue(t *testing.T) {
 		}
 	}
 
+}
+
+func eq(a, b *embedObj) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.FieldFloat == b.FieldFloat && a.FieldInt == b.FieldInt &&
+		a.FieldStr == b.FieldStr
+}
+
+func arrobj(t *testing.T) {
+	objsem := embedObjs{
+		Objs: []*embedObj{
+			{1, "one", 1.1},
+			{2, "two", 2.2},
+			nil,
+			{4, "four", 3.3},
+			{5, "five", 4.4},
+		},
+	}
+	maptag := MapTags(&objsem, "json")
+	embedstf, ok := maptag["embeds"].([]*embedObj)
+	if !ok {
+		t.Fatalf("Wrong type, %#v", maptag["embeds"])
+	}
+	if len(embedstf) != len(objsem.Objs) {
+		t.Fatalf("len(embedstf) expected %d got %d\n", len(objsem.Objs), len(embedstf))
+	}
+	for i, emtf := range embedstf {
+		if i == 2 && emtf != nil {
+			t.Errorf("%v expected nil, got empty value\n", emtf)
+			continue
+		}
+		if !eq(emtf, objsem.Objs[i]) && i != 2 {
+			t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
+				emtf, i, objsem.Objs[i])
+		}
+	}
+
+	rawtfobj := Mapped{
+		"embeds": []Mapped{
+			{"fieldInt": 1, "fieldStr": "one", "fieldFloat": 1.1},
+			{"fieldInt": 2, "fieldStr": "two", "fieldFloat": 2.2},
+			nil,
+			{"fieldInt": 4, "fieldStr": "four", "fieldFloat": 4.4},
+			{"fieldInt": 5, "fieldStr": "five", "fieldFloat": 5.5},
+		},
+		// "embeds": []*embedObj{
+		// 	{1, "one", 1.1},
+		// 	{2, "two", 2.2},
+		// 	{4, "four", 4.4},
+		// 	{5, "five", 5.5},
+		// },
+	}
+	newemb := embedObjs{}
+	err := FillStructByTags(&newemb, rawtfobj, "json")
+	if err != nil {
+		log.Println(err)
+	}
+	log.Printf("%#v\n", newemb)
+	for _, ob := range newemb.Objs {
+		log.Printf("%#v\n", ob)
+	}
+}
+
+func arrint(t *testing.T) {
+	type (
+		ArrInt   []int
+		MyArrInt struct {
+			ArrInt `json:"array_int"`
+		}
+		APint []*int
+		MPint struct {
+			APint `json:"ptarr_int"`
+		}
+		APfloat []*float32
+		MPfloat struct {
+			APfloat `json:"ptarr_float"`
+		}
+	)
+
+	initobj := MyArrInt{
+		ArrInt: []int{1, 2, 3, 4, 5},
+	}
+	minitobj := MapTags(&initobj, "json")
+	arintminit, ok := minitobj["array_int"].(ArrInt)
+	if !ok {
+		fmt.Println("failed to cast")
+		return
+	}
+	fmt.Printf("arrintminit %#v\n", arintminit)
+	rawminit := Mapped{
+		"array_int": []int{5, 4, 3, 2, 1},
+	}
+	var rinit MyArrInt
+	if err := FillStructByTags(&rinit, rawminit, "json"); err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("rinit %#v\n", rinit)
+
+	a := new(int)
+	b := new(int)
+	c := new(int)
+	d := new(int)
+	e := new(int)
+	*a = 11
+	*b = 22
+	*c = 33
+	*d = 44
+	*e = 55
+	pinitobj := MPint{
+		APint: []*int{a, b, nil, c, d, e},
+	}
+	mapinit := MapTags(&pinitobj, "json")
+	rawpinit, ok := mapinit["ptarr_int"].(APint)
+	if !ok {
+		fmt.Println("failed conv")
+		return
+	}
+	// fmt.Printf("rawpinit %v\n", rawpinit)
+	for _, rp := range rawpinit {
+		if rp != nil {
+			fmt.Printf("rp %d %#v\n", *rp, rp)
+		} else {
+			fmt.Printf("rp nil %#v\n", rp)
+
+		}
+	}
+
+	rawpinit2 := Mapped{
+		"ptarr_int": []interface{}{55, 44, 33, nil, 22, 11},
+	}
+	var pinit2 MPint
+	if err := FillStructByTags(&pinit2, rawpinit2, "json"); err != nil {
+		fmt.Println(err)
+	}
+	for _, p := range pinit2.APint {
+		if p == nil {
+			fmt.Printf("*r nil %#v\n", p)
+		} else {
+			fmt.Printf("*r %d %#v\n", *p, p)
+		}
+	}
+
+	rawfloat := Mapped{
+		"ptarr_float": []interface{}{1.1, 2.2, nil, 3.3, 4.4},
+	}
+	var mfloat MPfloat
+	if err := FillStructByTags(&mfloat, rawfloat, "json"); err != nil {
+		fmt.Println(err)
+	}
+	for _, p := range mfloat.APfloat {
+		if p == nil {
+			fmt.Printf("*r nil %#v\n", p)
+		} else {
+			fmt.Printf("*r %f %#v\n", *p, p)
+		}
+	}
+}
+
+func TestTagsSlice(t *testing.T) {
+	arrobj(t)
+	arrint(t)
 }
