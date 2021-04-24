@@ -302,7 +302,16 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 					newrval = reflect.New(acttype).Elem()
 					if newrval.Kind() < reflect.Array {
 						ival := vval.Interface()
-						newrval.Set(reflect.ValueOf(ival))
+						if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
+							nval := reflect.ValueOf(ival).Int()
+							newrval.SetInt(nval)
+						} else if newrval.Kind() > reflect.Uintptr &&
+							newrval.Kind() < reflect.Complex64 {
+							fval := reflect.ValueOf(ival).Float()
+							newrval.SetFloat(fval)
+						} else {
+							newrval.Set(reflect.ValueOf(ival))
+						}
 						res = reflect.Append(res, newrval.Addr())
 						continue
 					}
