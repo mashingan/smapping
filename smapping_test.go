@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"testing"
 	"time"
@@ -761,6 +760,7 @@ func arrobj(t *testing.T) {
 		}
 	}
 
+	// raw of mapped case
 	rawtfobj := Mapped{
 		"embeds": []Mapped{
 			{"fieldInt": 1, "fieldStr": "one", "fieldFloat": 1.1},
@@ -776,14 +776,34 @@ func arrobj(t *testing.T) {
 		// 	{5, "five", 5.5},
 		// },
 	}
+	expectedVals := []*embedObj{
+		{1, "one", 1.1},
+		{2, "two", 2.2},
+		nil,
+		{4, "four", 4.4},
+		{5, "five", 5.5},
+	}
 	newemb := embedObjs{}
 	err := FillStructByTags(&newemb, rawtfobj, "json")
 	if err != nil {
-		log.Println(err)
+		t.Error(err)
 	}
-	log.Printf("%#v\n", newemb)
-	for _, ob := range newemb.Objs {
-		log.Printf("%#v\n", ob)
+	t.Logf("%#v\n", newemb)
+	newemblen := len(newemb.Objs)
+	exptlen := len(expectedVals)
+	if newemblen != exptlen {
+		t.Fatalf("New len got %d, expected %d", newemblen, exptlen)
+	}
+	for i, ob := range newemb.Objs {
+		if i == 2 && ob != nil {
+			t.Errorf("%v expected nil, got empty value\n", ob)
+			continue
+		}
+		if i != 2 && !eq(ob, expectedVals[i]) {
+			t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
+				ob, i, expectedVals[i])
+
+		}
 	}
 }
 
