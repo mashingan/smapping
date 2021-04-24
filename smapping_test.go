@@ -742,6 +742,8 @@ func arrobj(t *testing.T) {
 		},
 	}
 	maptag := MapTags(&objsem, "json")
+
+	//TODO: will be fixed later for slicing tag
 	embedstf, ok := maptag["embeds"].([]*embedObj)
 	if !ok {
 		t.Fatalf("Wrong type, %#v", maptag["embeds"])
@@ -769,12 +771,6 @@ func arrobj(t *testing.T) {
 			{"fieldInt": 4, "fieldStr": "four", "fieldFloat": 4.4},
 			{"fieldInt": 5, "fieldStr": "five", "fieldFloat": 5.5},
 		},
-		// "embeds": []*embedObj{
-		// 	{1, "one", 1.1},
-		// 	{2, "two", 2.2},
-		// 	{4, "four", 4.4},
-		// 	{5, "five", 5.5},
-		// },
 	}
 	expectedVals := []*embedObj{
 		{1, "one", 1.1},
@@ -783,28 +779,45 @@ func arrobj(t *testing.T) {
 		{4, "four", 4.4},
 		{5, "five", 5.5},
 	}
-	newemb := embedObjs{}
-	err := FillStructByTags(&newemb, rawtfobj, "json")
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("%#v\n", newemb)
-	newemblen := len(newemb.Objs)
-	exptlen := len(expectedVals)
-	if newemblen != exptlen {
-		t.Fatalf("New len got %d, expected %d", newemblen, exptlen)
-	}
-	for i, ob := range newemb.Objs {
-		if i == 2 && ob != nil {
-			t.Errorf("%v expected nil, got empty value\n", ob)
-			continue
-		}
-		if i != 2 && !eq(ob, expectedVals[i]) {
-			t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
-				ob, i, expectedVals[i])
 
+	testit := func(raw Mapped) {
+		newemb := embedObjs{}
+		err := FillStructByTags(&newemb, rawtfobj, "json")
+		if err != nil {
+			t.Error(err)
 		}
+		t.Logf("%#v\n", newemb)
+		newemblen := len(newemb.Objs)
+		exptlen := len(expectedVals)
+		if newemblen != exptlen {
+			t.Fatalf("New len got %d, expected %d", newemblen, exptlen)
+		}
+		for i, ob := range newemb.Objs {
+			if i == 2 && ob != nil {
+				t.Errorf("%v expected nil, got empty value\n", ob)
+				continue
+			}
+			if i != 2 && !eq(ob, expectedVals[i]) {
+				t.Errorf("embedObj (%#v) at index %d got wrong value, expect (%#v)",
+					ob, i, expectedVals[i])
+
+			}
+		}
+
 	}
+	testit(rawtfobj)
+
+	// case of actual object
+	rawtfobj = Mapped{
+		"embeds": []*embedObj{
+			{1, "one", 1.1},
+			{2, "two", 2.2},
+			nil,
+			{4, "four", 4.4},
+			{5, "five", 5.5},
+		},
+	}
+	testit(rawtfobj)
 }
 
 func arrint(t *testing.T) {
