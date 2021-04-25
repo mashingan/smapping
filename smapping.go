@@ -31,21 +31,12 @@ func extractValue(x interface{}) reflect.Value {
 /*
 MapFields maps between struct to mapped interfaces{}.
 The argument must be pointer struct or else it will throw panic error.
+Now it's implemented as MapTags with empty tag "".
 
 Only map the exported fields.
 */
 func MapFields(x interface{}) Mapped {
-	result := make(Mapped)
-	argvalue := extractValue(x)
-	argtype := argvalue.Type()
-	for i := 0; i < argvalue.NumField(); i++ {
-		field := argtype.Field(i)
-		if field.PkgPath != "" {
-			continue
-		}
-		result[field.Name] = argvalue.Field(i).Interface()
-	}
-	return result
+	return MapTags(x, "")
 }
 
 func tagHead(tag string) string {
@@ -70,7 +61,8 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 	if isValueNil(fieldval) {
 		return nil
 	}
-	if fieldval.Type().Name() == "Time" {
+	if fieldval.Type().Name() == "Time" ||
+		reflect.Indirect(fieldval).Type().Name() == "Time" {
 		resval = fieldval.Interface()
 	} else {
 		switch fieldval.Kind() {
@@ -115,8 +107,10 @@ func MapTags(x interface{}, tag string) Mapped {
 		if field.PkgPath != "" {
 			continue
 		}
-		if tagvalue, ok := field.Tag.Lookup(tag); ok {
-			fieldval := value.Field(i)
+		fieldval := value.Field(i)
+		if tag == "" {
+			result[field.Name] = getValTag(fieldval, tag)
+		} else if tagvalue, ok := field.Tag.Lookup(tag); ok {
 			result[tagHead(tagvalue)] = getValTag(fieldval, tag)
 		}
 	}
@@ -204,33 +198,6 @@ func handleTime(layout, format string, typ reflect.Type) (reflect.Value, error) 
 	return resval, err
 }
 
-func setField(obj interface{}, name string, value interface{}) (bool, error) {
-	sval := extractValue(obj)
-	sfval := sval.FieldByName(name)
-	if !sfval.IsValid() {
-		return false, nil
-	}
-	if !sfval.CanSet() {
-		return false, fmt.Errorf("cannot set field %s in object", name)
-	}
-	sftype := sfval.Type()
-	val := reflect.ValueOf(value)
-	if isTime(sftype) {
-		var err error
-		if val.Type().Name() == "string" {
-			val, err = handleTime(time.RFC3339, val.String(), sftype)
-			if err != nil {
-				return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
-			}
-		}
-	} else if sftype != val.Type() {
-		return false, fmt.Errorf("provided value (%v) type not match object field '%s' type",
-			value, name)
-	}
-	sfval.Set(val)
-	return true, nil
-}
-
 func isSlicedObj(val, res reflect.Value) bool {
 	return val.Type().Kind() == reflect.Slice &&
 		res.Kind() == reflect.Slice
@@ -268,6 +235,8 @@ func fillTime(vfield reflect.Value, val *reflect.Value) error {
 			return fmt.Errorf("smapping Time conversion: %s", err.Error())
 		}
 		*val = newval
+	} else if val.Type().Name() == "Time" {
+		*val = reflect.Indirect(*val)
 	}
 	return nil
 }
@@ -334,7 +303,10 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			tag string
 			ok  bool
 		)
-		if tag, ok = field.Tag.Lookup(tagname); ok {
+		if tagname == "" && (vfield.IsValid() || vfield.CanSet()) &&
+			field.Name == tagvalue {
+			ok = true
+		} else if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
 				return false, nil
 			} else if tagHead(tag) != tagvalue {
@@ -378,7 +350,7 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 		if v == nil {
 			continue
 		}
-		_, err := setField(obj, k, v)
+		_, err := setFieldFromTag(obj, "", k, v)
 		if err != nil {
 			if errmsg != "" {
 				errmsg += ","
