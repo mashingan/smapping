@@ -300,7 +300,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			tag string
 			ok  bool
 		)
-		if tagvalue == "" && vfield.IsValid() && vfield.CanSet() {
+		if tagname == "" && (vfield.IsValid() || vfield.CanSet()) {
+			ok = true
 		} else if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
 				return false, nil
