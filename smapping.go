@@ -31,21 +31,12 @@ func extractValue(x interface{}) reflect.Value {
 /*
 MapFields maps between struct to mapped interfaces{}.
 The argument must be pointer struct or else it will throw panic error.
+Now it's implemented as MapTags with empty tag "".
 
 Only map the exported fields.
 */
 func MapFields(x interface{}) Mapped {
-	result := make(Mapped)
-	argvalue := extractValue(x)
-	argtype := argvalue.Type()
-	for i := 0; i < argvalue.NumField(); i++ {
-		field := argtype.Field(i)
-		if field.PkgPath != "" {
-			continue
-		}
-		result[field.Name] = argvalue.Field(i).Interface()
-	}
-	return result
+	return MapTags(x, "")
 }
 
 func tagHead(tag string) string {
@@ -115,8 +106,10 @@ func MapTags(x interface{}, tag string) Mapped {
 		if field.PkgPath != "" {
 			continue
 		}
-		if tagvalue, ok := field.Tag.Lookup(tag); ok {
-			fieldval := value.Field(i)
+		fieldval := value.Field(i)
+		if tag == "" {
+			result[field.Name] = getValTag(fieldval, tag)
+		} else if tagvalue, ok := field.Tag.Lookup(tag); ok {
 			result[tagHead(tagvalue)] = getValTag(fieldval, tag)
 		}
 	}
