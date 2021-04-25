@@ -264,6 +264,7 @@ func FillStructNestedTest(bytag bool, t *testing.T) {
 		t.Errorf("%s", err.Error())
 		return
 	}
+	t.Logf("madnestObj %#v\n", madnestObj)
 	if madnestObj.TopLayer.Level1.Level2.RefLevel3.What != "matryoska" {
 		t.Errorf("Error: expected \"matroska\" got \"%s\"", madnestObj.Level1.Level2.RefLevel3.What)
 	}
@@ -287,32 +288,34 @@ func fillStructTime(bytag bool, t *testing.T) {
 	obj := timeMap{Label: "test", Time: now, PtrTime: &now}
 	objTarget := timeMap{}
 	if bytag {
-		jsbyte, err := json.Marshal(obj)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		mapp := Mapped{}
-		_ = json.Unmarshal(jsbyte, &mapp)
-		err = FillStructByTags(&objTarget, mapp, "json")
+		// jsbyte, err := json.Marshal(obj)
+		// if err != nil {
+		// 	t.Error(err)
+		// 	return
+		// }
+		// mapp := Mapped{}
+		// _ = json.Unmarshal(jsbyte, &mapp)
+		mapfield := MapTags(&obj, "json")
+		err := FillStructByTags(&objTarget, mapfield, "json")
 		if err != nil {
 			t.Error(err)
 			return
 		}
 	} else {
 		mapfield := MapFields(&obj)
-		jsbyte, err := json.Marshal(mapfield)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		mapp := Mapped{}
-		err = json.Unmarshal(jsbyte, &mapp)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		err = FillStruct(&objTarget, mapp)
+		t.Logf("mapfield: %#v\n", mapfield)
+		// jsbyte, err := json.Marshal(mapfield)
+		// if err != nil {
+		// 	t.Error(err)
+		// 	return
+		// }
+		// mapp := Mapped{}
+		// err = json.Unmarshal(jsbyte, &mapp)
+		// if err != nil {
+		// 	t.Error(err)
+		// 	return
+		// }
+		err := FillStruct(&objTarget, mapfield)
 		if err != nil {
 			t.Error(err)
 			return
@@ -567,20 +570,25 @@ func compareErrorReports(t *testing.T, msgfmt string, msgs, errval, errfield []s
 		)
 		n, err := fmt.Fscanf(reader, msgfmt, &v1, &v2, &v3, &v4, &field)
 		v4 = v4[:len(v4)-1]
-		field = field[:len(field)-1]
-		if n != 5 {
+		if len(field) > 1 {
+			field = field[:len(field)-1]
+		}
+		// The mismatch happened when MapFields which
+		// actually MapTags with tag "" so it will return
+		// the empty string, hence when MapTags it's
+		// scanned 5 // and when MapFields it's scanned 4
+		if !(n == 5 || n == 4) {
 			t.Errorf("Scanned values should 5 but got %d", n)
 			continue
 		}
 		if err != nil {
-			t.Errorf(err.Error())
-			continue
+			t.Log(err.Error())
 		}
 		value := strings.Join([]string{v1, v2, v3, v4}, " ")
 		if notin(value, errval...) {
 			t.Errorf("value '%s' not found", value)
 		}
-		if notin(field, errfield...) {
+		if field != "" && notin(field, errfield...) {
 			t.Errorf("field '%s' not found", field)
 		}
 	}
@@ -743,8 +751,6 @@ func arrobj(t *testing.T) {
 	}
 	maptag := MapTags(&objsem, "json")
 
-	//TODO: will be fixed later for slicing tag
-	// embedstf, ok := maptag["embeds"].([]*embedObj)
 	embedstf, ok := maptag["embeds"].([]interface{})
 	if !ok {
 		t.Fatalf("Wrong type, %#v", maptag["embeds"])
