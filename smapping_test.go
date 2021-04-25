@@ -264,6 +264,7 @@ func FillStructNestedTest(bytag bool, t *testing.T) {
 		t.Errorf("%s", err.Error())
 		return
 	}
+	t.Logf("madnestObj %#v\n", madnestObj)
 	if madnestObj.TopLayer.Level1.Level2.RefLevel3.What != "matryoska" {
 		t.Errorf("Error: expected \"matroska\" got \"%s\"", madnestObj.Level1.Level2.RefLevel3.What)
 	}
@@ -743,8 +744,6 @@ func arrobj(t *testing.T) {
 	}
 	maptag := MapTags(&objsem, "json")
 
-	//TODO: will be fixed later for slicing tag
-	// embedstf, ok := maptag["embeds"].([]*embedObj)
 	embedstf, ok := maptag["embeds"].([]interface{})
 	if !ok {
 		t.Fatalf("Wrong type, %#v", maptag["embeds"])

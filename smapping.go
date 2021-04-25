@@ -197,33 +197,6 @@ func handleTime(layout, format string, typ reflect.Type) (reflect.Value, error) 
 	return resval, err
 }
 
-func setField(obj interface{}, name string, value interface{}) (bool, error) {
-	sval := extractValue(obj)
-	sfval := sval.FieldByName(name)
-	if !sfval.IsValid() {
-		return false, nil
-	}
-	if !sfval.CanSet() {
-		return false, fmt.Errorf("cannot set field %s in object", name)
-	}
-	sftype := sfval.Type()
-	val := reflect.ValueOf(value)
-	if isTime(sftype) {
-		var err error
-		if val.Type().Name() == "string" {
-			val, err = handleTime(time.RFC3339, val.String(), sftype)
-			if err != nil {
-				return false, fmt.Errorf("smapping Time conversion: %s", err.Error())
-			}
-		}
-	} else if sftype != val.Type() {
-		return false, fmt.Errorf("provided value (%v) type not match object field '%s' type",
-			value, name)
-	}
-	sfval.Set(val)
-	return true, nil
-}
-
 func isSlicedObj(val, res reflect.Value) bool {
 	return val.Type().Kind() == reflect.Slice &&
 		res.Kind() == reflect.Slice
@@ -327,7 +300,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			tag string
 			ok  bool
 		)
-		if tag, ok = field.Tag.Lookup(tagname); ok {
+		if tagvalue == "" && vfield.IsValid() && vfield.CanSet() {
+		} else if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
 				return false, nil
 			} else if tagHead(tag) != tagvalue {
@@ -371,7 +345,7 @@ func FillStruct(obj interface{}, mapped Mapped) error {
 		if v == nil {
 			continue
 		}
-		_, err := setField(obj, k, v)
+		_, err := setFieldFromTag(obj, "", k, v)
 		if err != nil {
 			if errmsg != "" {
 				errmsg += ","
