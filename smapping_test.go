@@ -288,32 +288,34 @@ func fillStructTime(bytag bool, t *testing.T) {
 	obj := timeMap{Label: "test", Time: now, PtrTime: &now}
 	objTarget := timeMap{}
 	if bytag {
-		jsbyte, err := json.Marshal(obj)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		mapp := Mapped{}
-		_ = json.Unmarshal(jsbyte, &mapp)
-		err = FillStructByTags(&objTarget, mapp, "json")
+		// jsbyte, err := json.Marshal(obj)
+		// if err != nil {
+		// 	t.Error(err)
+		// 	return
+		// }
+		// mapp := Mapped{}
+		// _ = json.Unmarshal(jsbyte, &mapp)
+		mapfield := MapTags(&obj, "json")
+		err := FillStructByTags(&objTarget, mapfield, "json")
 		if err != nil {
 			t.Error(err)
 			return
 		}
 	} else {
 		mapfield := MapFields(&obj)
-		jsbyte, err := json.Marshal(mapfield)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		mapp := Mapped{}
-		err = json.Unmarshal(jsbyte, &mapp)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		err = FillStruct(&objTarget, mapp)
+		t.Logf("mapfield: %#v\n", mapfield)
+		// jsbyte, err := json.Marshal(mapfield)
+		// if err != nil {
+		// 	t.Error(err)
+		// 	return
+		// }
+		// mapp := Mapped{}
+		// err = json.Unmarshal(jsbyte, &mapp)
+		// if err != nil {
+		// 	t.Error(err)
+		// 	return
+		// }
+		err := FillStruct(&objTarget, mapfield)
 		if err != nil {
 			t.Error(err)
 			return
