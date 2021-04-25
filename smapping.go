@@ -61,7 +61,8 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 	if isValueNil(fieldval) {
 		return nil
 	}
-	if fieldval.Type().Name() == "Time" {
+	if fieldval.Type().Name() == "Time" ||
+		reflect.Indirect(fieldval).Type().Name() == "Time" {
 		resval = fieldval.Interface()
 	} else {
 		switch fieldval.Kind() {
@@ -234,6 +235,8 @@ func fillTime(vfield reflect.Value, val *reflect.Value) error {
 			return fmt.Errorf("smapping Time conversion: %s", err.Error())
 		}
 		*val = newval
+	} else if val.Type().Name() == "Time" {
+		*val = reflect.Indirect(*val)
 	}
 	return nil
 }
@@ -300,7 +303,8 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			tag string
 			ok  bool
 		)
-		if tagname == "" && (vfield.IsValid() || vfield.CanSet()) {
+		if tagname == "" && (vfield.IsValid() || vfield.CanSet()) &&
+			field.Name == tagvalue {
 			ok = true
 		} else if tag, ok = field.Tag.Lookup(tagname); ok {
 			if !vfield.IsValid() || !vfield.CanSet() {
