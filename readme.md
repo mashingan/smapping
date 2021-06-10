@@ -77,6 +77,10 @@ internal state so each operation is transparent and *almost* functional
 returning the new struct itself, but this is only trade-off because Golang
 doesn't have type-parameter which known as generic).
 
+Since `v0.1.10`, we added the [`MapEncoder`](smapping.go#L21) and
+[`MapDecoder`](smapping.go#L27) interfaces for users to have custom conversion
+for custom and self-defined struct.
+
 ## Install
 ```
 go get github.com/mashingan/smapping

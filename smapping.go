@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"log"
 	"reflect"
 	s "strings"
 	"time"
@@ -16,6 +17,18 @@ import (
 
 // Mapped simply an alias
 type Mapped map[string]interface{}
+
+type MapEncoder interface {
+	MapEncode() (interface{}, error)
+}
+
+var mapEncoderI = reflect.TypeOf((*MapEncoder)(nil)).Elem()
+
+type MapDecoder interface {
+	MapDecode(interface{}) error
+}
+
+var mapDecoderI = reflect.TypeOf((*MapDecoder)(nil)).Elem()
 
 func extractValue(x interface{}) reflect.Value {
 	var result reflect.Value
@@ -64,6 +77,18 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 	if fieldval.Type().Name() == "Time" ||
 		reflect.Indirect(fieldval).Type().Name() == "Time" {
 		resval = fieldval.Interface()
+	} else if typof := fieldval.Type(); typof.Implements(mapEncoderI) ||
+		reflect.PtrTo(typof).Implements(mapEncoderI) {
+		valx, ok := fieldval.Interface().(MapEncoder)
+		if !ok {
+			return nil
+		}
+		val, err := valx.MapEncode()
+		if err != nil {
+			log.Println(err)
+			val = nil
+		}
+		resval = val
 	} else {
 		switch fieldval.Kind() {
 		case reflect.Struct:
@@ -318,7 +343,28 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 		}
 		val := reflect.ValueOf(value)
 		res := reflect.New(vfield.Type()).Elem()
-		if isTime(vfield.Type()) {
+		if typof := vfield.Type(); typof.Implements(mapDecoderI) ||
+			reflect.PtrTo(typof).Implements(mapDecoderI) {
+			isPtr := typof.Kind() == reflect.Ptr
+			var mapval reflect.Value
+			if isPtr {
+				mapval = reflect.New(typof.Elem())
+			} else {
+				mapval = reflect.New(typof)
+			}
+			mapdecoder, ok := mapval.Interface().(MapDecoder)
+			if !ok {
+				return false, nil
+			}
+			if err := mapdecoder.MapDecode(value); err != nil {
+				return false, err
+			}
+			if isPtr {
+				val = reflect.ValueOf(mapdecoder)
+			} else {
+				val = reflect.Indirect(reflect.ValueOf(mapdecoder))
+			}
+		} else if isTime(vfield.Type()) {
 			if err := fillTime(vfield, &val); err != nil {
 				return false, err
 			}

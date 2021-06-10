@@ -978,3 +978,88 @@ func TestTagsSlice(t *testing.T) {
 	arrobj(t)
 	arrvalues(t)
 }
+
+type sometype struct {
+	Value string `json:"value"`
+}
+
+func (s sometype) MapEncode() (interface{}, error) {
+	return s.Value, nil
+}
+
+func (s *sometype) MapDecode(x interface{}) error {
+	if x == nil {
+		s.Value = ""
+		return nil
+	}
+	xstr, ok := x.(string)
+	if !ok {
+		return nil
+	}
+	s.Value = xstr
+	return nil
+}
+func ExampleMapEncoder() {
+	type MapEncoderExample struct {
+		Data sometype `json:"data"`
+	}
+	type map2 struct {
+		Data *sometype `json:"data"`
+	}
+
+	s := MapEncoderExample{Data: sometype{Value: "hello"}}
+	smap := MapTags(&s, "json")
+	str, ok := smap["data"].(string)
+	if !ok {
+		fmt.Println("Not ok!")
+		return
+	}
+	fmt.Println(str)
+
+	s2 := map2{Data: &sometype{Value: "hello2"}}
+	smap = MapTags(&s2, "json")
+	str, ok = smap["data"].(string)
+	if !ok {
+		fmt.Println("Not ok!")
+		return
+	}
+	fmt.Println(str)
+
+	// Output:
+	// hello
+	// hello2
+}
+
+func ExampleMapDecoder() {
+	var err error
+	var smap map[string]interface{}
+
+	type MapDecoderExample struct {
+		Data sometype `json:"data"`
+	}
+	smap = map[string]interface{}{"data": "hello"}
+	var s MapDecoderExample
+	err = FillStructByTags(&s, smap, "json")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(s.Data.Value)
+
+	type map2 struct {
+		Data *sometype `json:"data"`
+	}
+	smap = map[string]interface{}{"data": "hello2"}
+	var s2 map2
+	// s2 := map2{Data: &sometype{}}
+	err = FillStructByTags(&s2, smap, "json")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(s2.Data.Value)
+
+	// Output:
+	// hello
+	// hello2
+}
