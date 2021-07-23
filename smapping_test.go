@@ -1063,3 +1063,24 @@ func ExampleMapDecoder() {
 	// hello
 	// hello2
 }
+
+func TestMapFromEmpty(t *testing.T) {
+	type ts1 struct{}
+	type ts2 struct{}
+	type ts3 struct{}
+	type ts4 struct{}
+	type teststruct struct {
+		Ts1 *ts1
+		Ts2 *ts2
+		Ts3 *ts3
+		Ts4 *ts4
+	}
+	var (
+		source Mapped
+		target teststruct
+	)
+	err := FillStruct(&target, source)
+	if err != nil {
+		t.Error(err)
+	}
+}
