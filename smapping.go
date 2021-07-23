@@ -342,6 +342,9 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			continue
 		}
 		val := reflect.ValueOf(value)
+		if !val.IsValid() {
+			continue
+		}
 		res := reflect.New(vfield.Type()).Elem()
 		if typof := vfield.Type(); typof.Implements(mapDecoderI) ||
 			reflect.PtrTo(typof).Implements(mapDecoderI) {
