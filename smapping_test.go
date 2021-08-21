@@ -14,6 +14,7 @@ type source struct {
 	Info    string    `json:"info"`
 	Version int       `json:"version"`
 	Toki    time.Time `json:"tomare"`
+	Addr    *string   `json:"address"`
 }
 
 type sink struct {
@@ -26,6 +27,7 @@ type differentSink struct {
 	NiceInfo  string    `json:"info"`
 	Version   string    `json:"unversion"`
 	Toki      time.Time `json:"doki"`
+	Addr      *string   `json:"address"`
 }
 
 type differentSourceSink struct {
@@ -34,11 +36,14 @@ type differentSourceSink struct {
 }
 
 var toki = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+var hello = "hello異世界"
+
 var sourceobj source = source{
 	Label:   "source",
 	Info:    "the origin",
 	Version: 1,
 	Toki:    toki,
+	Addr:    &hello,
 }
 
 func printIfNotExists(mapped Mapped, keys ...string) {
@@ -69,6 +74,7 @@ func ExampleMapTags_nested() {
 			NiceInfo:  "nested info",
 			Version:   "next version",
 			Toki:      toki,
+			Addr:      &hello,
 		},
 	}
 	nestedMap := MapTags(&nestedSource, "json")
@@ -90,12 +96,14 @@ func ExampleMapTags_nested() {
 	//     nested: info the origin
 	//     nested: version 1
 	//     nested: tomare 2000-01-01T00:00:00Z
+	//     nested: address hello異世界
 	//
 	// top key: differentSink
 	//     nested: label nested diff
 	//     nested: info nested info
 	//     nested: unversion next version
 	//     nested: doki 2000-01-01T00:00:00Z
+	//     nested: address hello異世界
 }
 
 type generalFields struct {
@@ -170,14 +178,23 @@ func ExampleFillStructByTags() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(diffsink)
+	fmt.Println(diffsink.DiffLabel)
+	fmt.Println(diffsink.NiceInfo)
+	fmt.Println(diffsink.Version)
+	fmt.Println(diffsink.Toki)
+	fmt.Println(*diffsink.Addr)
 
 	// Unordered Output:
 	// maptags[label]: source
 	// maptags[info]: the origin
 	// maptags[version]: 1
 	// maptags[tomare]: 2000-01-01T00:00:00Z
-	// {source the origin  0001-01-01 00:00:00 +0000 UTC}
+	// maptags[address]: hello異世界
+	// source
+	// the origin
+	//
+	// 0001-01-01 00:00:00 +0000 UTC
+	// hello異世界
 }
 
 type RefLevel3 struct {

@@ -95,7 +95,7 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 			resval = MapTags(fieldval, tag)
 		case reflect.Ptr:
 			indirect := reflect.Indirect(fieldval)
-			if indirect.Kind() < reflect.Array {
+			if indirect.Kind() < reflect.Array || indirect.Kind() == reflect.String {
 				resval = indirect.Interface()
 			} else {
 				resval = MapTags(fieldval.Elem(), tag)
@@ -379,6 +379,16 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			if err := fillSlice(res, &val, tagname); err != nil {
 				return false, err
 			}
+		} else if vfield.Kind() == reflect.Ptr {
+			vfv := vfield.Type().Elem()
+			if vfv != val.Type() {
+				return false, fmt.Errorf(
+					"provided value (%v) pointer type not match field tag '%s' of tagname '%s' from object",
+					value, tagname, tagvalue)
+			}
+			nval := reflect.New(vfv).Elem()
+			nval.Set(val)
+			val = nval.Addr()
 		} else if field.Type != val.Type() {
 			return false, fmt.Errorf("provided value (%v) type not match field tag '%s' of tagname '%s' from object",
 				value, tagname, tagvalue)
