@@ -9,7 +9,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"log"
 	"reflect"
 	s "strings"
 	"time"
@@ -85,7 +84,6 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 		}
 		val, err := valx.MapEncode()
 		if err != nil {
-			log.Println(err)
 			val = nil
 		}
 		resval = val
@@ -266,12 +264,58 @@ func fillTime(vfield reflect.Value, val *reflect.Value) error {
 	return nil
 }
 
+func scalarType(val reflect.Value) bool {
+	if val.Kind() != reflect.Interface {
+		return false
+	}
+	switch val.Interface().(type) {
+	case int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		float32, float64, string, []byte:
+		return true
+
+	}
+	return false
+}
+
+func ptrExtract(vval, rval reflect.Value) (reflect.Value, bool) {
+	acttype := rval.Type().Elem()
+	newrval := reflect.New(acttype).Elem()
+	gotval := false
+	if newrval.Kind() < reflect.Array {
+		gotval = true
+		ival := vval.Interface()
+		if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
+			nval := reflect.ValueOf(ival).Int()
+			newrval.SetInt(nval)
+		} else if newrval.Kind() > reflect.Uintptr &&
+			newrval.Kind() < reflect.Complex64 {
+			fval := reflect.ValueOf(ival).Float()
+			newrval.SetFloat(fval)
+		} else {
+			newrval.Set(reflect.ValueOf(ival))
+		}
+	}
+	return newrval, gotval
+}
+
 func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
 	for i := 0; i < val.Len(); i++ {
 		vval := val.Index(i)
 		rval := reflect.New(res.Type().Elem()).Elem()
 		if vval.Kind() < reflect.Array {
-			res = reflect.Append(res, vval)
+			rval.Set(vval)
+			res = reflect.Append(res, rval)
+			continue
+		} else if scalarType(vval) {
+			if rval.Kind() == reflect.Ptr {
+				if newrval, ok := ptrExtract(vval, rval); ok {
+					res = reflect.Append(res, newrval.Addr())
+					continue
+				}
+			}
+			rval.Set(reflect.ValueOf(vval.Interface()))
+			res = reflect.Append(res, rval)
 			continue
 		} else if vval.IsNil() {
 			res = reflect.Append(res, reflect.Zero(rval.Type()))
@@ -279,20 +323,8 @@ func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
 		}
 		newrval := rval
 		if rval.Kind() == reflect.Ptr {
-			acttype := rval.Type().Elem()
-			newrval = reflect.New(acttype).Elem()
-			if newrval.Kind() < reflect.Array {
-				ival := vval.Interface()
-				if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
-					nval := reflect.ValueOf(ival).Int()
-					newrval.SetInt(nval)
-				} else if newrval.Kind() > reflect.Uintptr &&
-					newrval.Kind() < reflect.Complex64 {
-					fval := reflect.ValueOf(ival).Float()
-					newrval.SetFloat(fval)
-				} else {
-					newrval.Set(reflect.ValueOf(ival))
-				}
+			var ok bool
+			if newrval, ok = ptrExtract(vval, rval); ok {
 				res = reflect.Append(res, newrval.Addr())
 				continue
 			}

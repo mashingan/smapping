@@ -1101,3 +1101,62 @@ func TestMapFromEmpty(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestMapArray(t *testing.T) {
+	type (
+		arrint struct {
+			Fields []int64 `json:"array"`
+		}
+		ssarrint struct {
+			Arrint arrint `json:"array_int"`
+		}
+
+		ssarrint2 struct {
+			Arrint arrint `json:"array_int"`
+		}
+	)
+	raw := []byte(`
+{
+	"array_int": {
+		"array": [1000000, 10000000, 100000000]
+	}
+	
+}
+	`)
+	var ss ssarrint
+	json.Unmarshal(raw, &ss)
+	sm := MapTags(&ss, "json")
+	var ss2 ssarrint2
+	if err := FillStructByTags(&ss2, sm, "json"); err != nil {
+		t.Log(err)
+	}
+	for i := range ss.Arrint.Fields {
+		expected := ss.Arrint.Fields[i]
+		got := ss2.Arrint.Fields[i]
+		if expected != got {
+			t.Errorf("fail fill struct, expected %d, got %d", expected, got)
+		}
+	}
+
+	raw = []byte(`
+	{
+		"array_int": {
+			"array": [1000, "hehue", 42.42]
+		}
+
+	}`)
+	ss = ssarrint{}
+	json.Unmarshal(raw, &ss)
+	sm = MapTags(&ss, "json")
+	ss2 = ssarrint2{}
+	if err := FillStructByTags(&ss2, sm, "json"); err != nil {
+		t.Error(err)
+	}
+	if ss2.Arrint.Fields[0] != ss.Arrint.Fields[0] {
+		t.Errorf("expected %d got %d", ss.Arrint.Fields[0], ss2.Arrint.Fields[0])
+	}
+
+	if ss2.Arrint.Fields[1] != 0 || ss2.Arrint.Fields[2] != 0 {
+		t.Error("expected rest of elem is 0, but got other values")
+	}
+}
