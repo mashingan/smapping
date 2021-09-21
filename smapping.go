@@ -308,6 +308,12 @@ func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
 			res = reflect.Append(res, rval)
 			continue
 		} else if scalarType(vval) {
+			if rval.Kind() == reflect.Ptr {
+				if newrval, ok := ptrExtract(vval, rval); ok {
+					res = reflect.Append(res, newrval.Addr())
+					continue
+				}
+			}
 			rval.Set(reflect.ValueOf(vval.Interface()))
 			res = reflect.Append(res, rval)
 			continue
