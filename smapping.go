@@ -278,8 +278,28 @@ func scalarType(val reflect.Value) bool {
 	return false
 }
 
+func ptrExtract(vval, rval reflect.Value) (reflect.Value, bool) {
+	acttype := rval.Type().Elem()
+	newrval := reflect.New(acttype).Elem()
+	gotval := false
+	if newrval.Kind() < reflect.Array {
+		gotval = true
+		ival := vval.Interface()
+		if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
+			nval := reflect.ValueOf(ival).Int()
+			newrval.SetInt(nval)
+		} else if newrval.Kind() > reflect.Uintptr &&
+			newrval.Kind() < reflect.Complex64 {
+			fval := reflect.ValueOf(ival).Float()
+			newrval.SetFloat(fval)
+		} else {
+			newrval.Set(reflect.ValueOf(ival))
+		}
+	}
+	return newrval, gotval
+}
+
 func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
-	newres := res
 	for i := 0; i < val.Len(); i++ {
 		vval := val.Index(i)
 		rval := reflect.New(res.Type().Elem()).Elem()
@@ -297,21 +317,9 @@ func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
 		}
 		newrval := rval
 		if rval.Kind() == reflect.Ptr {
-			acttype := rval.Type().Elem()
-			newrval = reflect.New(acttype).Elem()
-			if newrval.Kind() < reflect.Array {
-				ival := vval.Interface()
-				if newrval.Kind() > reflect.Bool && newrval.Kind() < reflect.Uint {
-					nval := reflect.ValueOf(ival).Int()
-					newrval.SetInt(nval)
-				} else if newrval.Kind() > reflect.Uintptr &&
-					newrval.Kind() < reflect.Complex64 {
-					fval := reflect.ValueOf(ival).Float()
-					newrval.SetFloat(fval)
-				} else {
-					newrval.Set(reflect.ValueOf(ival))
-				}
-				newres = reflect.Append(newres, newrval.Addr())
+			var ok bool
+			if newrval, ok = ptrExtract(vval, rval); ok {
+				res = reflect.Append(res, newrval.Addr())
 				continue
 			}
 		}
