@@ -9,7 +9,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"log"
 	"reflect"
 	s "strings"
 	"time"
@@ -85,7 +84,6 @@ func getValTag(fieldval reflect.Value, tag string) interface{} {
 		}
 		val, err := valx.MapEncode()
 		if err != nil {
-			log.Println(err)
 			val = nil
 		}
 		resval = val
@@ -266,12 +264,32 @@ func fillTime(vfield reflect.Value, val *reflect.Value) error {
 	return nil
 }
 
+func scalarType(val reflect.Value) bool {
+	if val.Kind() != reflect.Interface {
+		return false
+	}
+	switch val.Interface().(type) {
+	case int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		float32, float64, string, []byte:
+		return true
+
+	}
+	return false
+}
+
 func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
+	newres := res
 	for i := 0; i < val.Len(); i++ {
 		vval := val.Index(i)
 		rval := reflect.New(res.Type().Elem()).Elem()
 		if vval.Kind() < reflect.Array {
-			res = reflect.Append(res, vval)
+			rval.Set(vval)
+			res = reflect.Append(res, rval)
+			continue
+		} else if scalarType(vval) {
+			rval.Set(reflect.ValueOf(vval.Interface()))
+			res = reflect.Append(res, rval)
 			continue
 		} else if vval.IsNil() {
 			res = reflect.Append(res, reflect.Zero(rval.Type()))
@@ -293,7 +311,7 @@ func fillSlice(res reflect.Value, val *reflect.Value, tagname string) error {
 				} else {
 					newrval.Set(reflect.ValueOf(ival))
 				}
-				res = reflect.Append(res, newrval.Addr())
+				newres = reflect.Append(newres, newrval.Addr())
 				continue
 			}
 		}

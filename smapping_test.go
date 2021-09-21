@@ -1101,3 +1101,41 @@ func TestMapFromEmpty(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+type ssarrint struct {
+	Arrint `json:"array_int"`
+}
+
+type Arrint struct {
+	Fields []int64 `json:"array"`
+}
+
+type ssarrint2 struct {
+	Arrint `json:"array_int"`
+}
+
+func TestMapArray(t *testing.T) {
+	raw := []byte(`
+{
+	"array_int": {
+		"array": [1000000, 10000000, 100000000]
+	}
+	
+}
+	`)
+	var ss ssarrint
+	json.Unmarshal(raw, &ss)
+
+	sm := MapTags(&ss, "json")
+	var ss2 ssarrint2
+	if err := FillStructByTags(&ss2, sm, "json"); err != nil {
+		t.Log(err)
+	}
+	for i := range ss.Arrint.Fields {
+		expected := ss.Arrint.Fields[i]
+		got := ss2.Arrint.Fields[i]
+		if expected != got {
+			t.Errorf("fail fill struct, expected %d, got %d", expected, got)
+		}
+	}
+}
