@@ -415,14 +415,14 @@ func setFieldFromTag(obj interface{}, tagname, tagvalue string, value interface{
 			vfv := vfield.Type().Elem()
 			if vfv != val.Type() {
 				return false, fmt.Errorf(
-					"provided value (%v) pointer type not match field tag '%s' of tagname '%s' from object",
+					"provided value (%#v) pointer type not match field tag '%s' of tagname '%s' from object",
 					value, tagname, tagvalue)
 			}
 			nval := reflect.New(vfv).Elem()
 			nval.Set(val)
 			val = nval.Addr()
 		} else if field.Type != val.Type() {
-			return false, fmt.Errorf("provided value (%v) type not match field tag '%s' of tagname '%s' from object",
+			return false, fmt.Errorf("provided value (%#v) type not match field tag '%s' of tagname '%s' from object",
 				value, tagname, tagvalue)
 		}
 		vfield.Set(val)
