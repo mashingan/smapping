@@ -571,41 +571,20 @@ func ExampleSQLScan_allFields() {
 
 func notin(s string, pool ...string) bool {
 	for _, sp := range pool {
-		if s == sp {
+		if strings.Contains(s, sp) {
 			return false
 		}
 	}
 	return true
 }
 
-func compareErrorReports(t *testing.T, msgfmt string, msgs, errval, errfield []string) {
+func compareErrorReports(t *testing.T, msgs, errval, errfield []string) {
 	for _, msg := range msgs {
-		reader := strings.NewReader(msg)
 		var (
-			v1, v2, v3, v4 string
-			field          string
+			field string
 		)
-		n, err := fmt.Fscanf(reader, msgfmt, &v1, &v2, &v3, &v4, &field)
-		v4 = v4[:len(v4)-1]
-		if len(field) > 1 {
-			field = field[:len(field)-1]
-		}
-		// The mismatch happened when MapFields which
-		// actually MapTags with tag "" so it will return
-		// the empty string, hence when MapTags it's
-		// scanned 5 // and when MapFields it's scanned 4
-		if !(n == 5 || n == 4) {
-			t.Errorf("Scanned values should 5 but got %d", n)
-			continue
-		}
-		if err != nil {
-			t.Log(err.Error())
-		}
-		t.Log(errval)
-		value := strings.Join([]string{v1, v2, v3, v4}, " ")
-		t.Log("value:", value)
-		if notin(value, errval...) {
-			t.Errorf("value '%s' not found", value)
+		if notin(msg, errval...) {
+			t.Errorf("value '%s' not found", msg)
 		}
 		if field != "" && notin(field, errfield...) {
 			t.Errorf("field '%s' not found", field)
@@ -646,13 +625,12 @@ func TestBetterErrorReporting(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
-	msgfmt := "provided value (%s %s %s %s type not match object field '%s type"
 	errval := []string{field1, field2, field4, field5}
 	for i, s := range errval {
 		errval[i] = fmt.Sprintf(`"%s"`, s)
 	}
 	errfield := []string{"Field1", "Field2", "Field4", "Field5"}
-	compareErrorReports(t, msgfmt, msgs, errval, errfield)
+	compareErrorReports(t, msgs, errval, errfield)
 
 	ssmaptag := Mapped{
 		"fieldint": field1,
@@ -674,9 +652,8 @@ func TestBetterErrorReporting(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
-	msgfmt = "provided value (%s %s %s %s type not match field tag 'errtag' of tagname '%s from object"
 	errfield = []string{"fieldint", "fieldbol", "fieldflo", "fieldsru"}
-	compareErrorReports(t, msgfmt, msgs, errval, errfield)
+	compareErrorReports(t, msgs, errval, errfield)
 }
 
 type (
