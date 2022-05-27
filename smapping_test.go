@@ -601,7 +601,9 @@ func compareErrorReports(t *testing.T, msgfmt string, msgs, errval, errfield []s
 		if err != nil {
 			t.Log(err.Error())
 		}
+		t.Log(errval)
 		value := strings.Join([]string{v1, v2, v3, v4}, " ")
+		t.Log("value:", value)
 		if notin(value, errval...) {
 			t.Errorf("value '%s' not found", value)
 		}
@@ -646,6 +648,9 @@ func TestBetterErrorReporting(t *testing.T) {
 	}
 	msgfmt := "provided value (%s %s %s %s type not match object field '%s type"
 	errval := []string{field1, field2, field4, field5}
+	for i, s := range errval {
+		errval[i] = fmt.Sprintf(`"%s"`, s)
+	}
 	errfield := []string{"Field1", "Field2", "Field4", "Field5"}
 	compareErrorReports(t, msgfmt, msgs, errval, errfield)
 
