@@ -626,6 +626,9 @@ func TestBetterErrorReporting(t *testing.T) {
 		t.Errorf("Error message should report more than one field, got 0 report")
 	}
 	errval := []string{field1, field2, field4, field5}
+	for i, s := range errval {
+		errval[i] = fmt.Sprintf(`"%s"`, s)
+	}
 	errfield := []string{"Field1", "Field2", "Field4", "Field5"}
 	compareErrorReports(t, msgs, errval, errfield)
 
