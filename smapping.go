@@ -479,6 +479,35 @@ func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 	return nil
 }
 
+// FillStructDeflate fills the nested object from flat map.
+// This works by fill outer struct first and then checking its subsequent object fields.
+func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
+	errmsg := ""
+	err := FillStructByTags(obj, mapped, tagname)
+	if err != nil {
+		errmsg = err.Error()
+	}
+	sval := extractValue(obj)
+	// stype := sval.Type()
+	for i := 0; i < sval.NumField(); i++ {
+		field := reflect.Indirect(sval.Field(i))
+		kind := field.Kind()
+		if kind == reflect.Struct {
+			res := reflect.New(field.Type()).Elem()
+			if err = FillStructDeflate(res, mapped, tagname); err != nil {
+				if errmsg != "" {
+					errmsg += ", "
+				}
+				errmsg += err.Error()
+			}
+		}
+	}
+	if errmsg != "" {
+		return fmt.Errorf(errmsg)
+	}
+	return nil
+}
+
 func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructField,
 	tag string, index int, key string, obj, value interface{}) {
 	switch value.(type) {
