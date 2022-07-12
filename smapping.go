@@ -488,7 +488,6 @@ func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 		errmsg = err.Error()
 	}
 	sval := extractValue(obj)
-	// stype := sval.Type()
 	for i := 0; i < sval.NumField(); i++ {
 		field := reflect.Indirect(sval.Field(i))
 		kind := field.Kind()
@@ -500,6 +499,7 @@ func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 				}
 				errmsg += err.Error()
 			}
+			field.Set(res)
 		}
 	}
 	if errmsg != "" {
