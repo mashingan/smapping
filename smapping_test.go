@@ -413,110 +413,55 @@ func ExampleMapTagsFlatten() {
 	// key: lv3str, value: level 3 string
 }
 
-func ExampleFillStructDeflate_level1() {
-	type (
-		nest1 struct {
-			N1FieldInt int    `json:"nested1_int"`
-			N1FieldStr string `json:"nested1_str"`
-		}
-
-		nest2 struct {
-			N2FieldInt int    `json:"nested2_int"`
-			N2FieldStr string `json:"nested2_str"`
-		}
-
-		outerobj struct {
-			FieldInt int    `json:"field_int"`
-			FieldStr string `json:"field_str"`
-			Nest1    nest1  `json:"nested1"`
-			Nest2    nest2  `json:"nested2"`
-		}
-	)
-
-	src := outerobj{
-		FieldInt: 5,
-		FieldStr: "555",
-		Nest1: nest1{
-			N1FieldInt: 515,
-			N1FieldStr: "515",
-		},
-		Nest2: nest2{
-			N2FieldInt: 525,
-			N2FieldStr: "525",
-		},
-	}
-	srcmap := MapTagsFlatten(&src, "json")
-	tgt := outerobj{}
-	fmt.Println(FillStructDeflate(&tgt, srcmap, "json"))
-	fmt.Printf("%#v\n", tgt.FieldInt)
-	fmt.Printf("%#v\n", tgt.FieldStr)
-	fmt.Printf("%#v\n", tgt.Nest1.N1FieldInt)
-	fmt.Printf("%#v\n", tgt.Nest1.N1FieldStr)
-	fmt.Printf("%#v\n", tgt.Nest2.N2FieldInt)
-	fmt.Printf("%#v\n", tgt.Nest2.N2FieldStr)
-
-	// Output:
-	// <nil>
-	// 5
-	// "555"
-	// 515
-	// "515"
-	// 525
-	// "525"
-
-}
-
-func ExampleFillStructDeflate_level2() {
+func ExampleFillStructDeflate_fromJson() {
 	type (
 		nest2 struct {
-			N2FieldInt int    `json:"nested2_int"`
-			N2FieldStr string `json:"nested2_str"`
+			N2FieldFloat float64 `json:"nested2_flt"`
+			N2FieldStr   string  `json:"nested2_str"`
 		}
 
 		nest1 struct {
-			N1FieldInt int    `json:"nested1_int"`
-			N1FieldStr string `json:"nested1_str"`
-			Nest2      nest2  `json:"nested2"`
+			N1FieldFloat float64 `json:"nested1_flt"`
+			N1FieldStr   string  `json:"nested1_str"`
+			Nest2        *nest2  `json:"nested2"`
 		}
 
 		outerobj struct {
-			FieldInt int    `json:"field_int"`
-			FieldStr string `json:"field_str"`
-			Nest1    nest1  `json:"nested1"`
+			FieldFloat float64 `json:"field_flt"`
+			FieldStr   string  `json:"field_str"`
+			Nest1      nest1   `json:"nested1"`
 		}
 	)
 
-	src := outerobj{
-		FieldInt: 5,
-		FieldStr: "555",
-		Nest1: nest1{
-			N1FieldInt: 515,
-			N1FieldStr: "515",
-			Nest2: nest2{
-				N2FieldInt: 525,
-				N2FieldStr: "525",
-			},
-		},
-	}
-	srcmap := MapTagsFlatten(&src, "json")
-	tgt := outerobj{}
-	fmt.Println(FillStructDeflate(&tgt, srcmap, "json"))
-	fmt.Printf("%#v\n", tgt.FieldInt)
+	rawb := `
+{
+	"field_str": "555",
+	"field_flt": 5,
+	"nested1_flt": 515,
+	"nested1_str": "515",
+	"nested2_flt": 525,
+	"nested2_str": "525"
+}`
+	var m map[string]interface{}
+	fmt.Println(json.Unmarshal([]byte(rawb), &m))
+	var tgt outerobj
+	fmt.Println("error result fill struct deflate:", FillStructDeflate(&tgt, m, "json"))
+	fmt.Printf("%#v\n", tgt.FieldFloat)
 	fmt.Printf("%#v\n", tgt.FieldStr)
-	fmt.Printf("%#v\n", tgt.Nest1.N1FieldInt)
+	fmt.Printf("%#v\n", tgt.Nest1.N1FieldFloat)
 	fmt.Printf("%#v\n", tgt.Nest1.N1FieldStr)
-	fmt.Printf("%#v\n", tgt.Nest1.Nest2.N2FieldInt)
+	fmt.Printf("%#v\n", tgt.Nest1.Nest2.N2FieldFloat)
 	fmt.Printf("%#v\n", tgt.Nest1.Nest2.N2FieldStr)
 
 	// Output:
 	// <nil>
+	// error result fill struct deflate: <nil>
 	// 5
 	// "555"
 	// 515
 	// "515"
 	// 525
 	// "525"
-
 }
 
 type dummyValues struct {
