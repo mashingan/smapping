@@ -370,13 +370,13 @@ func ExampleMapTagsFlatten() {
 			Destination string
 		}
 		Lv3 struct {
-			Lv3Str string `json:"lv3str"`
-			*Last
+			Lv3Str   string `json:"lv3str"`
+			*Last    `json:"last"`
 			Lv3Dummy string
 		}
 		Lv2 struct {
-			Lv2Str string `json:"lv2str"`
-			Lv3
+			Lv2Str   string `json:"lv2str"`
+			Lv3      `json:"lv3"`
 			Lv2Dummy string
 		}
 		Lv1 struct {
