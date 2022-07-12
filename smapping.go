@@ -185,16 +185,17 @@ func MapTagsFlatten(x interface{}, tag string) Mapped {
 			continue
 		}
 		fieldval := value.Field(i)
-		if tagvalue, ok := field.Tag.Lookup(tag); ok {
+		isStruct := reflect.Indirect(fieldval).Type().Kind() == reflect.Struct
+		if tagvalue, ok := field.Tag.Lookup(tag); ok && !isStruct {
 			key := tagHead(tagvalue)
 			result[key] = fieldval.Interface()
 			continue
 		}
 		fieldval = reflect.Indirect(fieldval)
-		if fieldval.Type().Kind() != reflect.Struct {
+		if !isStruct {
 			continue
 		}
-		nests := MapTagsFlatten(fieldval, tag)
+		nests := MapTagsFlatten(reflect.Indirect(fieldval), tag)
 		for k, v := range nests {
 			result[k] = v
 		}
@@ -488,9 +489,8 @@ func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 		errmsg = err.Error()
 	}
 	sval := extractValue(obj)
-	// stype := sval.Type()
 	for i := 0; i < sval.NumField(); i++ {
-		field := reflect.Indirect(sval.Field(i))
+		field := sval.Field(i)
 		kind := field.Kind()
 		if kind == reflect.Struct {
 			res := reflect.New(field.Type()).Elem()
@@ -499,7 +499,23 @@ func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 					errmsg += ", "
 				}
 				errmsg += err.Error()
+				continue
 			}
+			field.Set(res)
+		} else if kind == reflect.Ptr {
+			indirectField := field.Type().Elem()
+			if indirectField.Kind() != reflect.Struct {
+				continue
+			}
+			res := reflect.New(indirectField).Elem()
+			if err = FillStructDeflate(res, mapped, tagname); err != nil {
+				if errmsg != "" {
+					errmsg += ", "
+				}
+				errmsg += err.Error()
+				continue
+			}
+			field.Set(res.Addr())
 		}
 	}
 	if errmsg != "" {
