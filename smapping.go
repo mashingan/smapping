@@ -489,7 +489,7 @@ func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 	}
 	sval := extractValue(obj)
 	for i := 0; i < sval.NumField(); i++ {
-		field := reflect.Indirect(sval.Field(i))
+		field := sval.Field(i)
 		kind := field.Kind()
 		if kind == reflect.Struct {
 			res := reflect.New(field.Type()).Elem()
@@ -498,8 +498,23 @@ func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 					errmsg += ", "
 				}
 				errmsg += err.Error()
+				continue
 			}
 			field.Set(res)
+		} else if kind == reflect.Ptr {
+			indirectField := field.Type().Elem()
+			if indirectField.Kind() != reflect.Struct {
+				continue
+			}
+			res := reflect.New(indirectField).Elem()
+			if err = FillStructDeflate(res, mapped, tagname); err != nil {
+				if errmsg != "" {
+					errmsg += ", "
+				}
+				errmsg += err.Error()
+				continue
+			}
+			field.Set(res.Addr())
 		}
 	}
 	if errmsg != "" {
