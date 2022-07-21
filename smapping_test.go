@@ -55,13 +55,14 @@ func printIfNotExists(mapped Mapped, keys ...string) {
 }
 
 func ExampleMapFields() {
-	mapped := MapFields(&sourceobj)
+	mapped := MapFields(sourceobj)
 	printIfNotExists(mapped, "Label", "Info", "Version")
 	// Output:
 }
 
 func ExampleMapTags_basic() {
-	maptags := MapTags(&sourceobj, "json")
+	ptrSourceObj := &sourceobj
+	maptags := MapTags(&ptrSourceObj, "json")
 	printIfNotExists(maptags, "label", "info", "version")
 	// Output:
 }
@@ -77,7 +78,13 @@ func ExampleMapTags_nested() {
 			Addr:      &hello,
 		},
 	}
-	nestedMap := MapTags(&nestedSource, "json")
+
+	// this part illustrates that MapTags or any other Map function
+	// accept arbitrary pointers to struct.
+	ptrNestedSource := &nestedSource
+	ptr2NestedSource := &ptrNestedSource
+	ptr3NestedSource := &ptr2NestedSource
+	nestedMap := MapTags(&ptr3NestedSource, "json")
 	for k, v := range nestedMap {
 		fmt.Println("top key:", k)
 		for kk, vv := range v.(Mapped) {
@@ -264,6 +271,20 @@ func TestMapTags_nested(t *testing.T) {
 		}
 	default:
 		t.Errorf("Expected string, got %T", v)
+	}
+}
+
+func TestMappingNotStruct(t *testing.T) {
+	m := MapFields("")
+	if lenm := len(m); lenm != 0 {
+		t.Errorf("Expected 0 got map with length %d", lenm)
+	}
+
+	m["dummy"] = 11
+	m["will"] = "vanish"
+	m = MapTags(5, "dummy-tag")
+	if lenm := len(m); lenm != 0 {
+		t.Errorf("Expected 0 got map with length %d", lenm)
 	}
 }
 
