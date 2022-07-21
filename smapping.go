@@ -35,14 +35,21 @@ func extractValue(x interface{}) reflect.Value {
 	case reflect.Value:
 		result = v
 	default:
-		result = reflect.ValueOf(x).Elem()
+		result = reflect.ValueOf(x)
+		for result.Type().Kind() == reflect.Ptr {
+			result = result.Elem()
+		}
+		if result.Type().Kind() != reflect.Struct {
+			typ := reflect.StructOf([]reflect.StructField{})
+			result = reflect.Zero(typ)
+		}
 	}
 	return result
 }
 
 /*
 MapFields maps between struct to mapped interfaces{}.
-The argument must be pointer struct or else it will throw panic error.
+The argument must be (zero or many pointers to) struct or else it will be ignored.
 Now it's implemented as MapTags with empty tag "".
 
 Only map the exported fields.
@@ -481,7 +488,7 @@ func FillStructByTags(obj interface{}, mapped Mapped, tagname string) error {
 }
 
 // FillStructDeflate fills the nested object from flat map.
-// This works by fill outer struct first and then checking its subsequent object fields.
+// This works by filling outer struct first and then checking its subsequent object fields.
 func FillStructDeflate(obj interface{}, mapped Mapped, tagname string) error {
 	errmsg := ""
 	err := FillStructByTags(obj, mapped, tagname)
