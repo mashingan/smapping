@@ -155,6 +155,9 @@ tag.
 func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 	result := make(Mapped)
 	value := extractValue(x)
+	if !value.IsValid() {
+		return nil
+	}
 	xtype := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := xtype.Field(i)
@@ -185,6 +188,9 @@ func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 func MapTagsFlatten(x interface{}, tag string) Mapped {
 	result := make(Mapped)
 	value := extractValue(x)
+	if !value.IsValid() {
+		return nil
+	}
 	xtype := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := xtype.Field(i)
