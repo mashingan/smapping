@@ -202,7 +202,7 @@ func MapTagsFlatten(x interface{}, tag string) Mapped {
 		if !isStruct {
 			continue
 		}
-		nests := MapTagsFlatten(reflect.Indirect(fieldval), tag)
+		nests := MapTagsFlatten(fieldval, tag)
 		for k, v := range nests {
 			result[k] = v
 		}
