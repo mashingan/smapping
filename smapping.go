@@ -639,6 +639,8 @@ func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 		mapres[key] = *v
 	case *[]byte:
 		mapres[key] = *v
+	case *time.Time:
+		mapres[key] = *v
 	case *driver.Valuer:
 	default:
 		typof := reflect.TypeOf(obj).Elem()
