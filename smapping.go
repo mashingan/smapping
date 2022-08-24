@@ -155,6 +155,9 @@ tag.
 func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 	result := make(Mapped)
 	value := extractValue(x)
+	if !value.IsValid() {
+		return nil
+	}
 	xtype := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := xtype.Field(i)
@@ -185,6 +188,9 @@ func MapTagsWithDefault(x interface{}, tag string, defs ...string) Mapped {
 func MapTagsFlatten(x interface{}, tag string) Mapped {
 	result := make(Mapped)
 	value := extractValue(x)
+	if !value.IsValid() {
+		return nil
+	}
 	xtype := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := xtype.Field(i)
@@ -202,7 +208,7 @@ func MapTagsFlatten(x interface{}, tag string) Mapped {
 		if !isStruct {
 			continue
 		}
-		nests := MapTagsFlatten(reflect.Indirect(fieldval), tag)
+		nests := MapTagsFlatten(fieldval, tag)
 		for k, v := range nests {
 			result[k] = v
 		}
@@ -564,6 +570,8 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 		mapvals[index] = new(bool)
 	case []byte:
 		mapvals[index] = new([]byte)
+	case time.Time:
+		mapvals[index] = new(time.Time)
 	case sql.Scanner, driver.Valuer, Mapped:
 		mapvals[index] = new(interface{})
 		typof := reflect.TypeOf(obj).Elem()
@@ -677,12 +685,7 @@ field name or field tagged string. The tags can receive the empty string
 "" and then it will map the field name by default.
 */
 func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
-	var mapres Mapped
-	if tag == "" {
-		mapres = MapFields(obj)
-	} else {
-		mapres = MapTags(obj, tag)
-	}
+	mapres := MapTags(obj, tag)
 	fieldsName := x
 	length := len(x)
 	if length == 0 || (length == 1 && x[0] == "*") {

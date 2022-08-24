@@ -18,6 +18,7 @@ To support `smapping.SQLScan`, the lowest Golang version supported is `1.13.0`.
 	* [Basic usage examples](#basic-usage-examples)
 	* [Nested object example](#nested-object-example)
 	* [SQLScan usage example](#sqlscan-usage-example)
+	* [Omit fields example](#omit-fields-example)
 5. [License](#license).
 
 # At Glimpse
@@ -396,6 +397,47 @@ insert into author(id, name) values
 	fmt.Println("all author1:", getAllAuthor(db))
 }
 
+```
+
+### Omit fields example
+
+Often we need to reuse the same object with exception a field or two. With smapping it's possible to generate
+map with custom tag. However having different tag would be too much of manual work.  
+In this example, we'll see how to exclude using the `delete` keyword.
+
+```go
+package main
+
+import (
+	"github.com/mashingan/smapping"
+)
+
+type Struct struct {
+	Field1       int    `json:"field1"`
+	Field2       string `json:"field2"`
+	RequestOnly  string `json:"input"`
+	ResponseOnly string `jsoN:"output"`
+}
+
+func main() {
+	s := Struct{
+		Field1:       5,
+		Field2:       "555",
+		RequestOnly:  "vanish later",
+		ResponseOnly: "still available",
+	}
+
+	m := smapping.MapTags(s, "json")
+	_, ok := m["input"]
+	if !ok {
+		panic("key 'input' should be still available")
+	}
+	delete(m, "input")
+	_, ok = m["input"]
+	if ok {
+		panic("key 'input' should be not available")
+	}
+}
 ```
 
 ## LICENSE
