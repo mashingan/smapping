@@ -570,6 +570,8 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 		mapvals[index] = new(bool)
 	case []byte:
 		mapvals[index] = new([]byte)
+	case time.Time:
+		mapvals[index] = new(time.Time)
 	case sql.Scanner, driver.Valuer, Mapped:
 		mapvals[index] = new(interface{})
 		typof := reflect.TypeOf(obj).Elem()
@@ -683,12 +685,7 @@ field name or field tagged string. The tags can receive the empty string
 "" and then it will map the field name by default.
 */
 func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
-	var mapres Mapped
-	if tag == "" {
-		mapres = MapFields(obj)
-	} else {
-		mapres = MapTags(obj, tag)
-	}
+	mapres := MapTags(obj, tag)
 	fieldsName := x
 	length := len(x)
 	if length == 0 || (length == 1 && x[0] == "*") {
