@@ -1214,3 +1214,38 @@ func TestMapArray(t *testing.T) {
 		t.Error("expected rest of elem is 0, but got other values")
 	}
 }
+
+func BenchmarkMapField(b *testing.B) {
+	var m Mapped
+	for i := 0; i < b.N; i++ {
+		m = MapFields(sourceobj)
+	}
+	_ = m
+}
+
+func BenchmarkMapTags(b *testing.B) {
+	var m Mapped
+	for i := 0; i < b.N; i++ {
+		m = MapTags(sourceobj, "json")
+	}
+	_ = m
+}
+
+func BenchmarkFillStruct(b *testing.B) {
+	m := MapFields(sourceobj)
+	var s source
+	for i := 0; i < b.N; i++ {
+		FillStruct(&s, m)
+	}
+	_ = s
+
+}
+
+func BenchmarkFillStructByTags(b *testing.B) {
+	m := MapTags(sourceobj, "json")
+	var s source
+	for i := 0; i < b.N; i++ {
+		FillStructByTags(&s, m, "json")
+	}
+	_ = s
+}
