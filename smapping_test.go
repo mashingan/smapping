@@ -689,6 +689,7 @@ func TestBetterErrorReporting(t *testing.T) {
 	if err == nil {
 		t.Errorf("Error should not nil")
 	}
+	t.Log(err)
 	if ss.Field3 != field3 {
 		t.Errorf("ss.Field3 expected '%s' but got '%s'", field3, ss.Field3)
 	}
