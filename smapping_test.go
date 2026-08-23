@@ -641,6 +641,31 @@ func ExampleSQLScan_allFields() {
 	// result.Uint64 == 5
 }
 
+func ExampleSQLScan_toMaps() {
+	currtime := time.Now()
+	dr := createDummyRow(currtime)
+	result := map[string]interface{}{
+		"Int32":      0,
+		"Uint64":     0,
+		"Bool":       false,
+		"Bytes":      []byte{},
+		"NullString": sql.NullString{},
+		"NullTime":   sql.NullTime{},
+	}
+	if err := SQLScan(dr, result,
+		"",
+		"Int32", "Uint64", "Bool", "Bytes",
+		"NullString", "NullTime"); err != nil {
+		fmt.Println("Error happened!")
+		return
+	}
+	fmt.Printf("NullString is Valid? %t\n", result["NullString"].(sql.NullString).Valid)
+	fmt.Printf("NullTime is Valid? %t\n", result["NullTime"].(sql.NullTime).Valid)
+	fmt.Printf("result.NullTime.Time.Equal(dr.Values.NullTime.Time)? %t\n",
+		result["NullTime"].(sql.NullTime).Time.Equal(dr.Values.NullTime.Time))
+	fmt.Printf("result.Uint64 == %v\n", result["Uint64"])
+}
+
 func notin(s string, pool ...string) bool {
 	for _, sp := range pool {
 		if strings.Contains(s, sp) {
