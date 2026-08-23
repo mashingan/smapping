@@ -592,11 +592,13 @@ func assignScanner(mapvals []interface{}, tagFields map[string]reflect.StructFie
 		mapvals[index] = new(interface{})
 		typof := reflect.TypeOf(obj).Elem()
 		if tag == "" {
-			strufield, ok := typof.FieldByName(key)
-			if !ok {
+			if m, ok := obj.(map[string]interface{}); ok {
+				typof = reflect.TypeOf(m[key])
+			} else if strufield, ok := typof.FieldByName(key); ok {
+				typof = strufield.Type
+			} else {
 				return
 			}
-			typof = strufield.Type
 		} else if strufield, ok := tagFields[key]; ok {
 			typof = strufield.Type
 		} else {
@@ -661,11 +663,13 @@ func assignValuer(mapres Mapped, tagFields map[string]reflect.StructField,
 	default:
 		typof := reflect.TypeOf(obj).Elem()
 		if tag == "" {
-			strufield, ok := typof.FieldByName(key)
-			if !ok {
+			if m, ok := obj.(map[string]interface{}); ok {
+				typof = reflect.TypeOf(m[key])
+			} else if strufield, ok := typof.FieldByName(key); ok {
+				typof = strufield.Type
+			} else {
 				return
 			}
-			typof = strufield.Type
 		} else if strufield, ok := tagFields[key]; ok {
 			typof = strufield.Type
 		} else {
@@ -721,6 +725,14 @@ func SQLScan(row SQLScanner, obj interface{}, tag string, x ...string) error {
 			}
 		}
 		fieldsName = newfields
+	}
+	if len(mapres) == 0 {
+		typ := reflect.TypeOf(obj)
+		if typ.Kind() == reflect.Map {
+			mapres = obj.(map[string]interface{})
+		} else if s.HasSuffix(typ.String(), "Mapped") {
+			mapres = obj.(Mapped)
+		}
 	}
 	mapvals := make([]interface{}, length)
 	tagFields := make(map[string]reflect.StructField)
